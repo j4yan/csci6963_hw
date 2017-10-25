@@ -16,8 +16,8 @@
 #define MAX_LINE_LEN 257
 #define MAX_WORD_LEN 20
 
-typedef char Word[MAX_WORD_LEN];
-typedef char Line[MAX_LINE_LEN];
+// typedef char Word[MAX_WORD_LEN];
+// typedef char Line[MAX_LINE_LEN];
 typedef struct _Occurence Occurence;
 typedef struct _IndexedWord IndexedWord;
 typedef struct _IndexArray IndexArray;
@@ -35,11 +35,11 @@ struct _Occurence {
  * \brief indexed word
  */
 struct _IndexedWord {
-    Word chars;
+    char *chars;
     Occurence *occurs; ///< array storing occurence  info
     int n_occurs;      ///< the actual size of \p words
     int max_occurs;    ///< the capability of \p words
-} DefaultIndexedWord = {{'\0'}, NULL, 0, 0};
+} DefaultIndexedWord = {NULL, NULL, 0, 0};
 
 /*!
  * \brief Dynamic array storing indexed words.
@@ -52,11 +52,12 @@ struct _IndexArray {
 
 void initIndexArray(IndexArray *indices);
 void addOccurToIndexedWord(int doc_id, int line_id, IndexedWord *word);
-void addWordToIndexArray(const Word word,
+void addWordToIndexArray(const char *word,
                          int doc_id,
                          int line_id,
                          IndexArray *arr);
-void destroyIndexArray(IndexArray* indices);
+void destroyIndexArray(IndexArray *indices);
+int comparaIndexedWordByOccurence(const void *a, const void *b);
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -86,18 +87,18 @@ int main(int argc, char **argv) {
     // }
     // printf("number of unique words = %i\n", indices.size);
 
-    int doc_id = 0;
-    int line_id = 0;
-    int word_id = 0;
+    int doc_id    = 0;
+    int line_id   = 0;
+    int word_id   = 0;
     const int EOL = '\n';
-    Word word;
+    char *word    = (char *)malloc(MAX_WORD_LEN * sizeof(char));
     while (1) {
         int flag = fscanf(fp_text, "%s", word);
 
         if (EOL == flag) {
             line_id += 1;
             word_id = 0;
-        }else if (EOF == flag) {
+        } else if (EOF == flag) {
             break;
         }
         addWordToIndexArray(word, doc_id, line_id, &indices);
@@ -105,9 +106,12 @@ int main(int argc, char **argv) {
     }
     printf("number of unique words = %i\n", indices.size);
 
-    for(int i =0; i<indices.size; ++i) {
-        IndexedWord* word = indices.words + i;
-        printf("word_id = %i, %s, occurs = %i\n", i, word->chars, word->n_occurs);
+    IndexedWord *words = indices.words;
+    qsort(words, indices.size, sizeof(*words), comparaIndexedWordByOccurence);
+
+    for (int i = 0; i < indices.size; ++i) {
+        IndexedWord *word = indices.words + i;
+        printf("%i %s\n", word->n_occurs, word->chars);
     }
 
     destroyIndexArray(&indices);
@@ -128,7 +132,7 @@ int main(int argc, char **argv) {
  *
  * \return void
  */
-void addWordToIndexArray(const Word word_in,
+void addWordToIndexArray(const char *word_in,
                          int doc_id,
                          int line_id,
                          IndexArray *indices) {
@@ -146,27 +150,28 @@ void addWordToIndexArray(const Word word_in,
     // if the word is not indexed yet
     if (indices->max_size <= 0) {
         indices->max_size = 1;
-        indices->size = 0;
-        indices->words    = (IndexedWord *)malloc(indices->max_size *
-                                                  sizeof(IndexedWord));
+        indices->size     = 0;
+        indices->words =
+                (IndexedWord *)malloc(indices->max_size * sizeof(IndexedWord));
         indices->words[0] = DefaultIndexedWord;
     } else if (indices->size >= indices->max_size - 1) {
         // check the capability of indices
         indices->max_size *= 2;
         IndexedWord *ptr = realloc(indices->words,
-                            indices->max_size * sizeof(IndexedWord));
+                                   indices->max_size * sizeof(IndexedWord));
         if (ptr == NULL) {
             fprintf(stderr, "%s", "Error: <unable to reallocate memory>\n");
             exit(EXIT_FAILURE);
         } else {
             indices->words = ptr;
-            for (int i=indices->size; i<indices->max_size; ++i) {
+            for (int i = indices->size; i < indices->max_size; ++i) {
                 indices->words[i] = DefaultIndexedWord;
             }
         }
     }
 
-    int end = indices->size;
+    int end                   = indices->size;
+    indices->words[end].chars = (char *)malloc(MAX_WORD_LEN * sizeof(char));
     addOccurToIndexedWord(doc_id, line_id, indices->words + end);
     strcpy(indices->words[end].chars, word_in);
     ++(indices->size);
@@ -182,17 +187,17 @@ void addWordToIndexArray(const Word word_in,
  * \param word indexed word
  */
 void addOccurToIndexedWord(int doc_id, int line_id, IndexedWord *word) {
-
     if (word->max_occurs <= 0) {
         word->max_occurs = 1;
-        word->n_occurs = 0;
+        word->n_occurs   = 0;
         word->occurs =
                 (Occurence *)malloc(word->max_occurs * sizeof(Occurence));
     } else if (word->n_occurs >= word->max_occurs - 1) {
         // this deal with the initial case where max_docs = 0
         word->max_occurs *= 2;
 
-        Occurence *ptr = realloc(word->occurs, word->max_occurs * sizeof(Occurence));
+        Occurence *ptr =
+                realloc(word->occurs, word->max_occurs * sizeof(Occurence));
 
         if (ptr == NULL) {
             fprintf(stderr, "%s", "Error: <unable to reallocate memory>\n");
@@ -212,16 +217,31 @@ void addOccurToIndexedWord(int doc_id, int line_id, IndexedWord *word) {
 
 /*!
  * \brief free the memory allocated in indices, both directly and indirectly.
- * 
+ *
  * \param indices
- * 
+ *
  * \return void
  */
-void destroyIndexArray(IndexArray* indices) {
-    for (int i = 0; i< indices->size; ++i) {
+void destroyIndexArray(IndexArray *indices) {
+    for (int i = 0; i < indices->size; ++i) {
         free(indices->words[i].occurs);
     }
 
     free(indices->words);
     return;
+}
+
+/*!
+ * \brief Compare two indexed words by their occurence.
+ *
+ * \param a 1st word
+ * \param b 2nd word
+ *
+ * \return a.n_occurs - b.n_occurs
+ */
+int comparaIndexedWordByOccurence(const void *a, const void *b) {
+    const IndexedWord *w1 = (IndexedWord *)a;
+    const IndexedWord *w2 = (IndexedWord *)b;
+
+    return w2->n_occurs - w1->n_occurs;
 }
