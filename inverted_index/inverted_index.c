@@ -5,16 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef max
-#define max(a, b) (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef min
-#define min(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-
 #define MAX_LINE_LEN 257
-#define MAX_WORD_LEN 20
+#define MAX_WORD_LEN 30
 
 // typedef char Word[MAX_WORD_LEN];
 // typedef char Line[MAX_LINE_LEN];
@@ -50,14 +42,28 @@ struct _IndexArray {
     int max_size;
 } DefaultIndexArray = {NULL, 0, 0};
 
+char *createNewWord() {
+    char *word = (char *)malloc(MAX_WORD_LEN * sizeof(char));
+
+    for (int i = 0; i < MAX_WORD_LEN; ++i) {
+        word[i] = '\0';
+    }
+    return word;
+}
+
+int trimWordPrefix(char *word);
+int trimWordPostfix(char *word);
+void trimWord(char *word);
+int parseLine(char *line, char ***words_out_ptr);
 void initIndexArray(IndexArray *indices);
-void addOccurToIndexedWord(int doc_id, int line_id, IndexedWord *word);
+void addOccurToIndexedWord(int doc_id, int line_id, int word_id, IndexedWord *word);
 void addWordToIndexArray(const char *word,
                          int doc_id,
                          int line_id,
+                         int word_id,
                          IndexArray *arr);
-void destroyIndexArray(IndexArray *indices);
 int comparaIndexedWordByOccurence(const void *a, const void *b);
+void destroyIndexArray(IndexArray *indices);
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -72,49 +78,79 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    IndexArray indices = DefaultIndexArray;
-
-    // int doc_id  = 1;
-    // int line_id = 1;
-    // Word word = "a";
-    //
-    // int times = 10;
-    // for (int i = 0; i < times; ++i) {
-    //     word[i] = 'a';
-    //     line_id = i + 1;
-    //     addWordToIndexArray(word, doc_id, line_id, &indices);
-    //     printf("%i words are indexed...\n", i+1);
+    /*
+     * test function parseLine
+     */
+    // char *word1   = (char *)malloc(MAX_WORD_LEN * sizeof(char));
+    // char *word1   = createNewWord();
+    // word1[0]      = '"';
+    // word1[1]      = 'B';
+    // word1[2]      = '-';
+    // word1[3]      = '-';
+    // word1[4]      = 'C';
+    // word1[5]      = 'd';
+    // word1[6]      = 'e';
+    // word1[7]      = '-';
+    // word1[8]      = 'a';
+    // word1[9]      = '.';
+    // char **words1 = NULL;
+    // int n_words1  = parseLine(word1, &words1);
+    // for (int i = 0; i < n_words1; ++i) {
+    //     printf("%s\n", words1[i]);
     // }
-    // printf("number of unique words = %i\n", indices.size);
+
+    IndexArray indices = DefaultIndexArray;
 
     int doc_id    = 0;
     int line_id   = 0;
     int word_id   = 0;
-    const int EOL = '\n';
-    char *word    = (char *)malloc(MAX_WORD_LEN * sizeof(char));
-    while (1) {
-        int flag = fscanf(fp_text, "%s", word);
+    char *line = (char*) malloc(MAX_LINE_LEN * sizeof(char));
+    while (NULL != fgets(line, MAX_LINE_LEN, fp_text)) {
 
-        if (EOL == flag) {
-            line_id += 1;
-            word_id = 0;
-        } else if (EOF == flag) {
-            break;
+        ++line_id;
+        char **words = NULL;
+        int n_words  = parseLine(line, &words);
+        for (int i = 0; i < n_words; ++i) {
+            addWordToIndexArray(words[i], doc_id, line_id, word_id, &indices);
+            ++word_id;
         }
-        addWordToIndexArray(word, doc_id, line_id, &indices);
-        ++word_id;
+        for (int i=0; i<n_words; ++i) {
+            free(words[i]);
+        } 
+        free(words);
     }
-    printf("number of unique words = %i\n", indices.size);
+
+    free(line);
 
     IndexedWord *words = indices.words;
     qsort(words, indices.size, sizeof(*words), comparaIndexedWordByOccurence);
 
+    int n_total_words = 0;
+
     for (int i = 0; i < indices.size; ++i) {
         IndexedWord *word = indices.words + i;
+        n_total_words += word->n_occurs;
+    }
+    printf("TOTAL WORDS: %i\n", n_total_words);
+    printf("UNIQUE WORDS: %i\n", indices.size);
+    for (int i = 0; i < indices.size; ++i) {
+        IndexedWord *word = indices.words + i;
+        n_total_words += word->n_occurs;
         printf("%i %s\n", word->n_occurs, word->chars);
+    }
+    for (int i = 0; i < indices.size; ++i) {
+        IndexedWord *word = indices.words + i;
+        if (strcmp(word->chars, "essential")) {
+            continue;
+        }
+        for(int j=0; j<word->n_occurs; ++j) {
+            Occurence* occur = word->occurs + j;
+            printf("%i %i\n", occur->line_id, occur->word_id);
+        }
     }
 
     destroyIndexArray(&indices);
+
     return 0;
 }
 
@@ -132,17 +168,18 @@ int main(int argc, char **argv) {
  *
  * \return void
  */
-void addWordToIndexArray(const char *word_in,
+void addWordToIndexArray(const char *line,
                          int doc_id,
                          int line_id,
+                         int word_id,
                          IndexArray *indices) {
     int word_found = 0;
     for (int i = 0; i < indices->size; ++i) {
         IndexedWord *word = &indices->words[i];
         // if we already have the word
-        word_found = !strcmp(word->chars, word_in);
+        word_found = !strcmp(word->chars, line);
         if (word_found) {
-            addOccurToIndexedWord(doc_id, line_id, word);
+            addOccurToIndexedWord(doc_id, line_id, word_id, word);
             return;
         }
     }
@@ -167,13 +204,15 @@ void addWordToIndexArray(const char *word_in,
             for (int i = indices->size; i < indices->max_size; ++i) {
                 indices->words[i] = DefaultIndexedWord;
             }
+            // printf("IndexArray: memory reallocated\n");
         }
     }
 
-    int end                   = indices->size;
-    indices->words[end].chars = (char *)malloc(MAX_WORD_LEN * sizeof(char));
-    addOccurToIndexedWord(doc_id, line_id, indices->words + end);
-    strcpy(indices->words[end].chars, word_in);
+    int end = indices->size;
+    // indices->words[end].chars = (char *)malloc(MAX_WORD_LEN * sizeof(char));
+    indices->words[end].chars = createNewWord();
+    addOccurToIndexedWord(doc_id, line_id, word_id, indices->words + end);
+    strcpy(indices->words[end].chars, line);
     ++(indices->size);
 
     return;
@@ -186,7 +225,7 @@ void addWordToIndexArray(const char *word_in,
  * \param line_id id of occurence line
  * \param word indexed word
  */
-void addOccurToIndexedWord(int doc_id, int line_id, IndexedWord *word) {
+void addOccurToIndexedWord(int doc_id, int line_id, int word_id, IndexedWord *word) {
     if (word->max_occurs <= 0) {
         word->max_occurs = 1;
         word->n_occurs   = 0;
@@ -204,12 +243,14 @@ void addOccurToIndexedWord(int doc_id, int line_id, IndexedWord *word) {
             exit(EXIT_FAILURE);
         } else {
             word->occurs = ptr;
+            // printf("WordOccurence: memory reallocated\n");
         }
     }
 
     Occurence *end = word->occurs + word->n_occurs;
     end->doc_id    = doc_id;
     end->line_id   = line_id;
+    end->word_id   = word_id;
 
     ++(word->n_occurs);
     return;
@@ -244,4 +285,210 @@ int comparaIndexedWordByOccurence(const void *a, const void *b) {
     const IndexedWord *w2 = (IndexedWord *)b;
 
     return w2->n_occurs - w1->n_occurs;
+}
+
+/*!
+ * \brief trim word
+ */
+void trimWord(char *word) {
+
+    while (trimWordPrefix(word)) {
+    };
+    while (trimWordPostfix(word)) {
+    };
+
+    return;
+}
+
+/*!
+ * \brief trim a word by removing the last character if it's non-alpha.
+ * 
+ * \param word word to be trimmed
+ * \return 0 if no trim is done, otherwise, 1
+ */
+int trimWordPostfix(char *word) {
+    const int end = strlen(word) - 1;
+    if (end < 0) {
+        return 0;
+    }
+    if (isalpha(word[end])) {
+        return 0;
+    }
+    if (isdigit(word[end])) {
+        return 0;
+    }
+
+    word[end] = '\0';
+
+    return 1;
+}
+
+/*!
+ * \brief trim a word by removing the first character if it's non-alpha.
+ * 
+ * \param word word to be trimmed
+ * \param 0 if no trim is done, otherwise, 1
+ */
+int trimWordPrefix(char *word) {
+    const size_t len = strlen(word);
+    if (!len)
+        return 0;
+
+    const int end = len - 1;
+
+    if (end < 0) {
+        return 0;
+    }
+    if (isalpha(word[0])) {
+        return 0;
+    }
+    // if (isdigit(word[0])) {
+    //     return 0;
+    // }
+
+    char *new_word = createNewWord();
+    strcpy(new_word, word + 1);
+    strcpy(word, new_word);
+    free(new_word);
+
+    return 1;
+}
+
+/*!
+ * \brief Parse a word, that is, this "word" read in with space
+ * as stopper may be separated into several words. 
+ * 
+ * \param line word to be parsed
+ * \param words_out_ptr a pointer to store new words
+ * \return number of new words
+ */
+int parseLine(char *line, char ***words_out_ptr) {
+    size_t len = strlen(line);
+    // empty line
+    if (len < 2) {
+        return 0;
+    }
+     
+    // convert to lower case
+    for (size_t i = 0; i < len; ++i) {
+        line[i] = tolower((unsigned char)line[i]);
+    }
+
+    // trimWord(line);
+
+    len = strlen(line);
+    if (!len) {
+        return 0;
+    }
+
+    // count new words so we can allocate memory
+    // int word_cnt = 1;
+    //
+    // for (size_t i = 0; i < len - 1; ++i) {
+    //     if (line[i] == '-' && line[i + 1] != '-') {
+    //         ++word_cnt;
+    //     } else if (line[i] == ' ' && line[i+1] != ' ') {
+    //         ++word_cnt;
+    //     }
+    // }
+    // char **words_out = (char **)malloc(word_cnt * sizeof(char *));
+    //
+    // for (int i = 0; i < word_cnt; ++i) {
+    //     // words_out[i] = (char *)malloc(MAX_WORD_LEN * sizeof(char));
+    //     words_out[i] = createNewWord();
+    // }
+    //
+    // word_cnt     = 0;
+    // int char_cnt = 0;
+    // for (size_t i = 0; i < len; ++i) {
+    //     if (line[i] == '-') {
+    //         if (line[i + 1] != '-') {
+    //             ++word_cnt;
+    //             char_cnt = 0;
+    //         }
+    //     } else if (line[i] == ' ') {
+    //         if (line[i+1] != ' ') {
+    //             ++word_cnt;
+    //             char_cnt = 0;
+    //         }
+    //     }else {
+    //         words_out[word_cnt][char_cnt] = line[i];
+    //         ++char_cnt;
+    //     }
+    // }
+    //
+    // // we didn't loop over the last charactor
+    // words_out[word_cnt][char_cnt] = line[len - 1];
+
+    // count the number of words we are gonna have
+    int word_cnt = 0;
+    int char_cnt = 0;
+    for (size_t i = 0; i < len; ++i) {
+        // if (isalpha(line[i]) || line[i] == '\''){
+        //     if (isalpha(line[i-1]) || line[i-1] == '\''){
+        //     } else {
+        //         ++word_cnt;
+        //     }
+        // }
+        if (char_cnt == 0) {
+            if (isalpha(line[i])) {
+                ++char_cnt;
+                ++word_cnt;
+            }
+        } else {
+            if (isalpha(line[i]) || line[i] == '\''){
+                ++char_cnt;
+            } else{
+                char_cnt = 0;
+            }
+
+        }
+    }
+
+    char **words_out = (char **)malloc(word_cnt * sizeof(char *));
+    for (int i = 0; i < word_cnt; ++i) {
+        words_out[i] = createNewWord();
+    }
+    // words_out[0][0] = line[0];
+
+    char_cnt = 0;
+    word_cnt = -1;
+    for (size_t i = 0; i < len; ++i) {
+        // if (isalpha(line[i]) || line[i] == '\''){
+        //     if (isalpha(line[i-1]) || line[i-1] == '\''){
+        //         words_out[word_cnt][char_cnt] = line[i];
+        //         ++char_cnt;
+        //     } else {
+        //         // start a new word
+        //         ++word_cnt;
+        //         char_cnt = 0;
+        //         words_out[word_cnt][char_cnt] = line[i];
+        //         ++char_cnt;
+        //     }
+        // }
+
+        if (char_cnt == 0) {
+            if (isalpha(line[i])) {
+                ++word_cnt;
+                words_out[word_cnt][char_cnt] = line[i];
+                ++char_cnt;
+            }
+        } else {
+            if (isalpha(line[i]) || line[i] == '\''){
+                words_out[word_cnt][char_cnt] = line[i];
+                ++char_cnt;
+            } else {
+                char_cnt = 0;
+            }
+
+        }
+    }
+
+    for (int i = 0; i < word_cnt + 1; ++i) {
+        trimWord(words_out[i]);
+    }
+
+    *words_out_ptr = words_out;
+
+    return word_cnt + 1;
 }
