@@ -78,27 +78,6 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    /*
-     * test function parseLine
-     */
-    // char *word1   = (char *)malloc(MAX_WORD_LEN * sizeof(char));
-    // char *word1   = createNewWord();
-    // word1[0]      = '"';
-    // word1[1]      = 'B';
-    // word1[2]      = '-';
-    // word1[3]      = '-';
-    // word1[4]      = 'C';
-    // word1[5]      = 'd';
-    // word1[6]      = 'e';
-    // word1[7]      = '-';
-    // word1[8]      = 'a';
-    // word1[9]      = '.';
-    // char **words1 = NULL;
-    // int n_words1  = parseLine(word1, &words1);
-    // for (int i = 0; i < n_words1; ++i) {
-    //     printf("%s\n", words1[i]);
-    // }
-
     IndexArray indices = DefaultIndexArray;
 
     int doc_id  = 0;
@@ -107,6 +86,7 @@ int main(int argc, char **argv) {
     while (NULL != fgets(line, MAX_LINE_LEN, fp_text)) {
 
         ++line_id;
+        // printf("%i %s", line_id, line);
         char **words = NULL;
         int n_words  = parseLine(line, &words);
         for (int i = 0; i < n_words; ++i) {
@@ -117,46 +97,6 @@ int main(int argc, char **argv) {
         }
         free(words);
     }
-
-    printf("no problem here\n");
-
-    // char* book_words = "book-1984-words.txt";
-    // char* word_char = createNewWord();
-    // FILE *fp_book = fopen(book_words, "r");
-    // if (fp_book == NULL) {
-    //     fprintf(stderr, "%s", "Error: <could not open file>\n");
-    //     exit(EXIT_FAILURE);
-    // }
-    // fgets(line, MAX_LINE_LEN, fp_book);
-    // fgets(line, MAX_LINE_LEN, fp_book);
-    // int n_diff = 0;
-    // while (2 == fscanf(fp_book, "%i %s", &line_id, word_char)) {
-    //     int found = 0;
-    //     IndexedWord *word = NULL;
-    //     for (int i = 0; i < indices.size; ++i) {
-    //         word = indices.words + i;
-    //         if (!strcmp(word->chars, word_char)) {
-    //             found = 1;
-    //             size_t len = strlen(word->chars);
-    //             word->chars[len] = 'a';
-    //             word->chars[len+1] = 'a';
-    //             word->chars[len+2] = 'a';
-    //             word->chars[len+3] = 'a';
-    //             word->chars[len+4] = 'a';
-    //             word->chars[len+5] = 'a';
-    //             word->chars[len+6] = 'a';
-    //             word->chars[len+7] = 'a';
-    //             word->chars[len+8] = 'a';
-    //             word->chars[len+9] = 'a';
-    //             break;
-    //         }
-    //     }
-    //     if (!found) {
-    //         ++n_diff;
-    //         printf("%s\n", word_char);
-    //     }
-    // }
-    // printf("n_diff = %i\n", n_diff);
 
     free(line);
 
@@ -325,12 +265,13 @@ int comparaIndexedWordByOccurence(const void *a, const void *b) {
     const IndexedWord *w1 = (IndexedWord *)a;
     const IndexedWord *w2 = (IndexedWord *)b;
 
-    return w2->n_occurs - w1->n_occurs;
+    int diff = w2->n_occurs - w1->n_occurs;
+    // return w2->n_occurs - w1->n_occurs;
+    return diff == 0 ? (int)(w1-w2) : diff;
 }
 
 /*!
- * \brief Parse a word, that is, this "word" read in with space
- * as stopper may be separated into several words.
+ * \brief Parse a line using word delimiters.
  *
  * \param line word to be parsed
  * \param words_out_ptr a pointer to store new words
@@ -355,30 +296,45 @@ int parseLine(char *line, char ***words_out_ptr) {
         return 0;
     }
 
-    // count the number of words we are gonna have
+    // count the number of words we are gonna have.
     int word_cnt = 0;
     int char_cnt = 0;
+    int quote_cnt = 0;
     for (size_t i = 0; i < len; ++i) {
         if (char_cnt == 0) {
+            // got a new word
             if (isalpha(line[i])) {
                 ++char_cnt;
                 ++word_cnt;
             }
         } else {
-            if (isalpha(line[i]) || line[i] == '\'') {
+            if (isalpha(line[i])) {
+                // continue the current word
                 ++char_cnt;
+            } else if (line[i] == '\'' && quote_cnt == 0) {
+                // continue the current word. remember there is at
+                // most 1 single quote in each word.
+                ++char_cnt;
+                ++quote_cnt;
             } else {
+                // in this case we must encounter some delimiters.
                 char_cnt = 0;
+                quote_cnt = 0;
             }
         }
     }
 
+    // allocate memory
     char **words_out = (char **)malloc(word_cnt * sizeof(char *));
     for (int i = 0; i < word_cnt; ++i) {
         words_out[i] = createNewWord();
     }
 
+    // start to storing words. Use \p char_cnt to indicate 
+    // whether it's a new word. That's why \p word_cnt
+    // starts from -1.
     char_cnt = 0;
+    quote_cnt = 0;
     word_cnt = -1;
     for (size_t i = 0; i < len; ++i) {
         if (char_cnt == 0) {
@@ -388,11 +344,18 @@ int parseLine(char *line, char ***words_out_ptr) {
                 ++char_cnt;
             }
         } else {
-            if (isalpha(line[i]) || line[i] == '\'') {
+            if (isalpha(line[i])) {
                 words_out[word_cnt][char_cnt] = line[i];
                 ++char_cnt;
+            } else if (line[i] == '\'' && quote_cnt == 0) {
+                // continue the current word
+                words_out[word_cnt][char_cnt] = line[i];
+                ++char_cnt;
+                ++quote_cnt;
             } else {
+                // in this case we must encounter some delimiters.
                 char_cnt = 0;
+                quote_cnt = 0;
             }
         }
     }
