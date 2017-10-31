@@ -51,9 +51,6 @@ char *createNewWord() {
     return word;
 }
 
-int trimWordPrefix(char *word);
-int trimWordPostfix(char *word);
-void trimWord(char *word);
 int parseLine(char *line, char ***words_out_ptr);
 void initIndexArray(IndexArray *indices);
 void addOccurToIndexedWord(int doc_id, int line_id, int word_id, IndexedWord *word);
@@ -103,7 +100,6 @@ int main(int argc, char **argv) {
 
     int doc_id    = 0;
     int line_id   = 0;
-    int word_id   = 0;
     char *line = (char*) malloc(MAX_LINE_LEN * sizeof(char));
     while (NULL != fgets(line, MAX_LINE_LEN, fp_text)) {
 
@@ -111,14 +107,53 @@ int main(int argc, char **argv) {
         char **words = NULL;
         int n_words  = parseLine(line, &words);
         for (int i = 0; i < n_words; ++i) {
-            addWordToIndexArray(words[i], doc_id, line_id, word_id, &indices);
-            ++word_id;
+            addWordToIndexArray(words[i], doc_id, line_id, i+1, &indices);
         }
         for (int i=0; i<n_words; ++i) {
             free(words[i]);
         } 
         free(words);
     }
+
+    printf("no problem here\n");
+
+    // char* book_words = "book-1984-words.txt";
+    // char* word_char = createNewWord();
+    // FILE *fp_book = fopen(book_words, "r");
+    // if (fp_book == NULL) {
+    //     fprintf(stderr, "%s", "Error: <could not open file>\n");
+    //     exit(EXIT_FAILURE);
+    // }
+    // fgets(line, MAX_LINE_LEN, fp_book);
+    // fgets(line, MAX_LINE_LEN, fp_book);
+    // int n_diff = 0;
+    // while (2 == fscanf(fp_book, "%i %s", &line_id, word_char)) {
+    //     int found = 0;
+    //     IndexedWord *word = NULL;
+    //     for (int i = 0; i < indices.size; ++i) {
+    //         word = indices.words + i;
+    //         if (!strcmp(word->chars, word_char)) {
+    //             found = 1;
+    //             size_t len = strlen(word->chars);
+    //             word->chars[len] = 'a';
+    //             word->chars[len+1] = 'a';
+    //             word->chars[len+2] = 'a';
+    //             word->chars[len+3] = 'a';
+    //             word->chars[len+4] = 'a';
+    //             word->chars[len+5] = 'a';
+    //             word->chars[len+6] = 'a';
+    //             word->chars[len+7] = 'a';
+    //             word->chars[len+8] = 'a';
+    //             word->chars[len+9] = 'a';
+    //             break;
+    //         }
+    //     }
+    //     if (!found) {
+    //         ++n_diff;
+    //         printf("%s\n", word_char);
+    //     }
+    // }
+    // printf("n_diff = %i\n", n_diff);
 
     free(line);
 
@@ -288,73 +323,6 @@ int comparaIndexedWordByOccurence(const void *a, const void *b) {
 }
 
 /*!
- * \brief trim word
- */
-void trimWord(char *word) {
-
-    while (trimWordPrefix(word)) {
-    };
-    while (trimWordPostfix(word)) {
-    };
-
-    return;
-}
-
-/*!
- * \brief trim a word by removing the last character if it's non-alpha.
- * 
- * \param word word to be trimmed
- * \return 0 if no trim is done, otherwise, 1
- */
-int trimWordPostfix(char *word) {
-    const int end = strlen(word) - 1;
-    if (end < 0) {
-        return 0;
-    }
-    if (isalpha(word[end])) {
-        return 0;
-    }
-    if (isdigit(word[end])) {
-        return 0;
-    }
-
-    word[end] = '\0';
-
-    return 1;
-}
-
-/*!
- * \brief trim a word by removing the first character if it's non-alpha.
- * 
- * \param word word to be trimmed
- * \param 0 if no trim is done, otherwise, 1
- */
-int trimWordPrefix(char *word) {
-    const size_t len = strlen(word);
-    if (!len)
-        return 0;
-
-    const int end = len - 1;
-
-    if (end < 0) {
-        return 0;
-    }
-    if (isalpha(word[0])) {
-        return 0;
-    }
-    // if (isdigit(word[0])) {
-    //     return 0;
-    // }
-
-    char *new_word = createNewWord();
-    strcpy(new_word, word + 1);
-    strcpy(word, new_word);
-    free(new_word);
-
-    return 1;
-}
-
-/*!
  * \brief Parse a word, that is, this "word" read in with space
  * as stopper may be separated into several words. 
  * 
@@ -381,55 +349,10 @@ int parseLine(char *line, char ***words_out_ptr) {
         return 0;
     }
 
-    // count new words so we can allocate memory
-    // int word_cnt = 1;
-    //
-    // for (size_t i = 0; i < len - 1; ++i) {
-    //     if (line[i] == '-' && line[i + 1] != '-') {
-    //         ++word_cnt;
-    //     } else if (line[i] == ' ' && line[i+1] != ' ') {
-    //         ++word_cnt;
-    //     }
-    // }
-    // char **words_out = (char **)malloc(word_cnt * sizeof(char *));
-    //
-    // for (int i = 0; i < word_cnt; ++i) {
-    //     // words_out[i] = (char *)malloc(MAX_WORD_LEN * sizeof(char));
-    //     words_out[i] = createNewWord();
-    // }
-    //
-    // word_cnt     = 0;
-    // int char_cnt = 0;
-    // for (size_t i = 0; i < len; ++i) {
-    //     if (line[i] == '-') {
-    //         if (line[i + 1] != '-') {
-    //             ++word_cnt;
-    //             char_cnt = 0;
-    //         }
-    //     } else if (line[i] == ' ') {
-    //         if (line[i+1] != ' ') {
-    //             ++word_cnt;
-    //             char_cnt = 0;
-    //         }
-    //     }else {
-    //         words_out[word_cnt][char_cnt] = line[i];
-    //         ++char_cnt;
-    //     }
-    // }
-    //
-    // // we didn't loop over the last charactor
-    // words_out[word_cnt][char_cnt] = line[len - 1];
-
     // count the number of words we are gonna have
     int word_cnt = 0;
     int char_cnt = 0;
     for (size_t i = 0; i < len; ++i) {
-        // if (isalpha(line[i]) || line[i] == '\''){
-        //     if (isalpha(line[i-1]) || line[i-1] == '\''){
-        //     } else {
-        //         ++word_cnt;
-        //     }
-        // }
         if (char_cnt == 0) {
             if (isalpha(line[i])) {
                 ++char_cnt;
@@ -449,24 +372,10 @@ int parseLine(char *line, char ***words_out_ptr) {
     for (int i = 0; i < word_cnt; ++i) {
         words_out[i] = createNewWord();
     }
-    // words_out[0][0] = line[0];
 
     char_cnt = 0;
     word_cnt = -1;
     for (size_t i = 0; i < len; ++i) {
-        // if (isalpha(line[i]) || line[i] == '\''){
-        //     if (isalpha(line[i-1]) || line[i-1] == '\''){
-        //         words_out[word_cnt][char_cnt] = line[i];
-        //         ++char_cnt;
-        //     } else {
-        //         // start a new word
-        //         ++word_cnt;
-        //         char_cnt = 0;
-        //         words_out[word_cnt][char_cnt] = line[i];
-        //         ++char_cnt;
-        //     }
-        // }
-
         if (char_cnt == 0) {
             if (isalpha(line[i])) {
                 ++word_cnt;
@@ -484,11 +393,17 @@ int parseLine(char *line, char ***words_out_ptr) {
         }
     }
 
-    for (int i = 0; i < word_cnt + 1; ++i) {
-        trimWord(words_out[i]);
+    ++word_cnt; 
+
+    // if the word ends with '\'', trim it.
+    for(int i = 0; i<word_cnt; ++i) {
+        size_t len_i = strlen(words_out[i]);
+        if (words_out[i][len_i-1] == '\'') {
+            words_out[i][len_i-1] = '\0';
+        }
     }
 
     *words_out_ptr = words_out;
 
-    return word_cnt + 1;
+    return word_cnt;
 }
