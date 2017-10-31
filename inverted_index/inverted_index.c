@@ -53,7 +53,10 @@ char *createNewWord() {
 
 int parseLine(char *line, char ***words_out_ptr);
 void initIndexArray(IndexArray *indices);
-void addOccurToIndexedWord(int doc_id, int line_id, int word_id, IndexedWord *word);
+void addOccurToIndexedWord(int doc_id,
+                           int line_id,
+                           int word_id,
+                           IndexedWord *word);
 void addWordToIndexArray(const char *word,
                          int doc_id,
                          int line_id,
@@ -98,20 +101,20 @@ int main(int argc, char **argv) {
 
     IndexArray indices = DefaultIndexArray;
 
-    int doc_id    = 0;
-    int line_id   = 0;
-    char *line = (char*) malloc(MAX_LINE_LEN * sizeof(char));
+    int doc_id  = 0;
+    int line_id = 0;
+    char *line  = (char *)malloc(MAX_LINE_LEN * sizeof(char));
     while (NULL != fgets(line, MAX_LINE_LEN, fp_text)) {
 
         ++line_id;
         char **words = NULL;
         int n_words  = parseLine(line, &words);
         for (int i = 0; i < n_words; ++i) {
-            addWordToIndexArray(words[i], doc_id, line_id, i+1, &indices);
+            addWordToIndexArray(words[i], doc_id, line_id, i + 1, &indices);
         }
-        for (int i=0; i<n_words; ++i) {
+        for (int i = 0; i < n_words; ++i) {
             free(words[i]);
-        } 
+        }
         free(words);
     }
 
@@ -178,8 +181,8 @@ int main(int argc, char **argv) {
         if (strcmp(word->chars, "essential")) {
             continue;
         }
-        for(int j=0; j<word->n_occurs; ++j) {
-            Occurence* occur = word->occurs + j;
+        for (int j = 0; j < word->n_occurs; ++j) {
+            Occurence *occur = word->occurs + j;
             printf("%i %i\n", occur->line_id, occur->word_id);
         }
     }
@@ -260,7 +263,10 @@ void addWordToIndexArray(const char *line,
  * \param line_id id of occurence line
  * \param word indexed word
  */
-void addOccurToIndexedWord(int doc_id, int line_id, int word_id, IndexedWord *word) {
+void addOccurToIndexedWord(int doc_id,
+                           int line_id,
+                           int word_id,
+                           IndexedWord *word) {
     if (word->max_occurs <= 0) {
         word->max_occurs = 1;
         word->n_occurs   = 0;
@@ -324,8 +330,8 @@ int comparaIndexedWordByOccurence(const void *a, const void *b) {
 
 /*!
  * \brief Parse a word, that is, this "word" read in with space
- * as stopper may be separated into several words. 
- * 
+ * as stopper may be separated into several words.
+ *
  * \param line word to be parsed
  * \param words_out_ptr a pointer to store new words
  * \return number of new words
@@ -336,7 +342,7 @@ int parseLine(char *line, char ***words_out_ptr) {
     if (len < 2) {
         return 0;
     }
-     
+
     // convert to lower case
     for (size_t i = 0; i < len; ++i) {
         line[i] = tolower((unsigned char)line[i]);
@@ -359,12 +365,11 @@ int parseLine(char *line, char ***words_out_ptr) {
                 ++word_cnt;
             }
         } else {
-            if (isalpha(line[i]) || line[i] == '\''){
+            if (isalpha(line[i]) || line[i] == '\'') {
                 ++char_cnt;
-            } else{
+            } else {
                 char_cnt = 0;
             }
-
         }
     }
 
@@ -383,23 +388,22 @@ int parseLine(char *line, char ***words_out_ptr) {
                 ++char_cnt;
             }
         } else {
-            if (isalpha(line[i]) || line[i] == '\''){
+            if (isalpha(line[i]) || line[i] == '\'') {
                 words_out[word_cnt][char_cnt] = line[i];
                 ++char_cnt;
             } else {
                 char_cnt = 0;
             }
-
         }
     }
 
-    ++word_cnt; 
+    ++word_cnt;
 
     // if the word ends with '\'', trim it.
-    for(int i = 0; i<word_cnt; ++i) {
+    for (int i = 0; i < word_cnt; ++i) {
         size_t len_i = strlen(words_out[i]);
-        if (words_out[i][len_i-1] == '\'') {
-            words_out[i][len_i-1] = '\0';
+        if (words_out[i][len_i - 1] == '\'') {
+            words_out[i][len_i - 1] = '\0';
         }
     }
 
