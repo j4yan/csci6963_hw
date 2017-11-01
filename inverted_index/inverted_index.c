@@ -89,15 +89,20 @@ void addWordToIndexArray(const char *word,
                          int line_id,
                          int word_id,
                          IndexArray *arr);
-void createInvertedIndex(const char* fname, IndexArray* indices);
-void createNGrams(const char* fname, const IndexArray* indices, BigramArray* biarr, TrigramArray* triarr);
-int skipWordInNgram(const char* word, const IndexArray* indices, int top);
+void createInvertedIndex(const char *fname, IndexArray *indices);
+void createNGrams(const char *fname,
+                  const IndexArray *indices,
+                  BigramArray *biarr,
+                  TrigramArray *triarr);
+int skipWordInNgram(const char *word, const IndexArray *indices, int top);
 int compareIndexedWordsByOccurence(const void *a, const void *b);
 int compareBigramsByOccurence(const void *a, const void *b);
 int compareTrigramsByOccurence(const void *a, const void *b);
-void outputInvertedIndex(const char* fname, const IndexArray* indices, int top_n);
-void outputBigrams(const char* fname, const BigramArray* arr, int top_n);
-void outputTrigrams(const char* fname, const TrigramArray* arr, int top_n);
+void outputInvertedIndex(const char *fname,
+                         const IndexArray *indices,
+                         int top_n);
+void outputBigrams(const char *fname, const BigramArray *arr, int top_n);
+void outputTrigrams(const char *fname, const TrigramArray *arr, int top_n);
 void destroyIndexArray(IndexArray *indices);
 
 int main(int argc, char **argv) {
@@ -106,15 +111,13 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    IndexArray indices    = DefaultIndexArray;
-
+    IndexArray indices = DefaultIndexArray;
 
     BigramArray bigrams   = DefaultBigramArray;
     TrigramArray trigrams = DefaultTrigramArray;
 
     createInvertedIndex(argv[1], &indices);
     createNGrams(argv[1], &indices, &bigrams, &trigrams);
-
 
     outputInvertedIndex("index.dat", &indices, -1);
     outputBigrams("bigrams.dat", &bigrams, -1);
@@ -125,16 +128,16 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void createInvertedIndex(const char* fname, IndexArray* indices) {
+void createInvertedIndex(const char *fname, IndexArray *indices) {
 
     FILE *fp = fopen(fname, "r");
     if (fp == NULL) {
         fprintf(stderr, "%s", "Error: <could not open file>\n");
         exit(EXIT_FAILURE);
     }
-    int doc_id       = 0;
-    int line_id      = 0;
-    char *line       = (char *)malloc(MAX_LINE_LEN * sizeof(char));
+    int doc_id  = 0;
+    int line_id = 0;
+    char *line  = (char *)malloc(MAX_LINE_LEN * sizeof(char));
 
     while (NULL != fgets(line, MAX_LINE_LEN, fp)) {
         ++line_id;
@@ -145,7 +148,6 @@ void createInvertedIndex(const char* fname, IndexArray* indices) {
             addWordToIndexArray(words[i], doc_id, line_id, i + 1, indices);
         }
     }
-
 
     // sort index
     {
@@ -161,14 +163,17 @@ void createInvertedIndex(const char* fname, IndexArray* indices) {
     return;
 }
 
-void createNGrams(const char* fname, const IndexArray* indices, BigramArray* biarr, TrigramArray* triarr) {
+void createNGrams(const char *fname,
+                  const IndexArray *indices,
+                  BigramArray *biarr,
+                  TrigramArray *triarr) {
 
     FILE *fp = fopen(fname, "r");
     if (fp == NULL) {
         fprintf(stderr, "%s", "Error: <could not open file>\n");
         exit(EXIT_FAILURE);
     }
-    int line_id = 0;
+    int line_id      = 0;
     int n_words_old  = 0;
     char **words_old = NULL;
     char *line       = (char *)malloc(MAX_LINE_LEN * sizeof(char));
@@ -193,7 +198,8 @@ void createNGrams(const char* fname, const IndexArray* indices, BigramArray* bia
         // here we store bigrams and trigrams, that's why we need \p words_old
         // int n_tot_words = n_words + max(2, n_words_old);
 
-        // count the total number of words we may have in generating bigrams/trigrams
+        // count the total number of words we may have in generating
+        // bigrams/trigrams
         int n_tot_words = n_words;
         if (n_words_old >= 2) {
             n_tot_words += 2;
@@ -228,14 +234,14 @@ void createNGrams(const char* fname, const IndexArray* indices, BigramArray* bia
 
         // trigram
         int top = 50;
-        int i = 0;
-        while( i < n_tot_words -2 ) {
-        // for (int i = 0; i < n_tot_words - 2; ++i) {
-            if (skipWordInNgram(tot_words[i+2], indices, top)) {
+        int i   = 0;
+        while (i < n_tot_words - 2) {
+            // for (int i = 0; i < n_tot_words - 2; ++i) {
+            if (skipWordInNgram(tot_words[i + 2], indices, top)) {
                 i += 3;
                 continue;
             }
-            if (skipWordInNgram(tot_words[i+1], indices, top)) {
+            if (skipWordInNgram(tot_words[i + 1], indices, top)) {
                 i += 2;
                 continue;
             }
@@ -243,18 +249,16 @@ void createNGrams(const char* fname, const IndexArray* indices, BigramArray* bia
                 i += 1;
                 continue;
             }
-            addTrigram(tot_words[i],
-                       tot_words[i + 1],
-                       tot_words[i + 2],
-                       triarr);
+            addTrigram(
+                    tot_words[i], tot_words[i + 1], tot_words[i + 2], triarr);
             ++i;
         }
 
         // bigram
         i = 0;
-        while( i < n_tot_words - 1 ) {
-        // for (int i = 0; i < n_tot_words - 1; ++i) {
-            if (skipWordInNgram(tot_words[i+1], indices, top)) {
+        while (i < n_tot_words - 1) {
+            // for (int i = 0; i < n_tot_words - 1; ++i) {
+            if (skipWordInNgram(tot_words[i + 1], indices, top)) {
                 i += 2;
                 continue;
             }
@@ -262,9 +266,7 @@ void createNGrams(const char* fname, const IndexArray* indices, BigramArray* bia
                 i += 1;
                 continue;
             }
-            addBigram(tot_words[i],
-                       tot_words[i + 1],
-                       biarr);
+            addBigram(tot_words[i], tot_words[i + 1], biarr);
             ++i;
         }
 
@@ -696,7 +698,9 @@ void addTrigram(const char *word1,
     return;
 }
 
-void outputInvertedIndex(const char* fname, const IndexArray* indices, int top_n) {
+void outputInvertedIndex(const char *fname,
+                         const IndexArray *indices,
+                         int top_n) {
 
     assert(top_n <= indices->size);
     FILE *fp = fopen(fname, "w");
@@ -705,7 +709,7 @@ void outputInvertedIndex(const char* fname, const IndexArray* indices, int top_n
         exit(EXIT_FAILURE);
     }
 
-    int n_output = top_n < 0 ? indices->size : top_n;
+    int n_output      = top_n < 0 ? indices->size : top_n;
     int n_total_words = 0;
 
     for (int i = 0; i < indices->size; ++i) {
@@ -725,8 +729,7 @@ void outputInvertedIndex(const char* fname, const IndexArray* indices, int top_n
     return;
 }
 
-
-void outputBigrams(const char* fname, const BigramArray* arr, int top_n) {
+void outputBigrams(const char *fname, const BigramArray *arr, int top_n) {
     assert(top_n <= arr->size);
     FILE *fp = fopen(fname, "w");
     if (fp == NULL) {
@@ -734,8 +737,7 @@ void outputBigrams(const char* fname, const BigramArray* arr, int top_n) {
         exit(EXIT_FAILURE);
     }
 
-
-    int n_output = top_n < 0 ? arr->size : top_n;
+    int n_output      = top_n < 0 ? arr->size : top_n;
     int n_total_grams = 0;
 
     for (int i = 0; i < arr->size; ++i) {
@@ -755,7 +757,7 @@ void outputBigrams(const char* fname, const BigramArray* arr, int top_n) {
     return;
 }
 
-void outputTrigrams(const char* fname, const TrigramArray* arr, int top_n) {
+void outputTrigrams(const char *fname, const TrigramArray *arr, int top_n) {
     assert(top_n <= arr->size);
     FILE *fp = fopen(fname, "w");
     if (fp == NULL) {
@@ -763,8 +765,7 @@ void outputTrigrams(const char* fname, const TrigramArray* arr, int top_n) {
         exit(EXIT_FAILURE);
     }
 
-
-    int n_output = top_n < 0 ? arr->size : top_n;
+    int n_output      = top_n < 0 ? arr->size : top_n;
     int n_total_grams = 0;
 
     for (int i = 0; i < arr->size; ++i) {
@@ -776,19 +777,23 @@ void outputTrigrams(const char* fname, const TrigramArray* arr, int top_n) {
     for (int i = 0; i < n_output; ++i) {
         Trigram *gram = arr->trigrams + i;
         n_total_grams += gram->n_occurs;
-        fprintf(fp, "%i %s %s %s\n", gram->n_occurs, gram->word1, gram->word2, gram->word3);
+        fprintf(fp,
+                "%i %s %s %s\n",
+                gram->n_occurs,
+                gram->word1,
+                gram->word2,
+                gram->word3);
     }
 
     fclose(fp);
     return;
 }
 
-
-int skipWordInNgram(const char* word, const IndexArray* indices, int top) {
+int skipWordInNgram(const char *word, const IndexArray *indices, int top) {
     int n_top = top < indices->size ? top : indices->size;
 
-    for (int i=0; i<n_top; ++i) {
-        IndexedWord* word_i = indices->words + i;
+    for (int i = 0; i < n_top; ++i) {
+        IndexedWord *word_i = indices->words + i;
         if (!strcmp(word, word_i->chars)) {
             return 1;
         }
