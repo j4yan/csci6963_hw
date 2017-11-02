@@ -89,7 +89,7 @@ void addWordToIndexArray(const char *word,
                          int line_id,
                          int word_id,
                          IndexArray *arr);
-void createInvertedIndex(const char *fname, IndexArray *indices);
+void createInvertedIndex(const char *fname, int doc_id, IndexArray *indices);
 void createNGrams(const char *fname,
                   const IndexArray *indices,
                   BigramArray *biarr,
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
     BigramArray bigrams   = DefaultBigramArray;
     TrigramArray trigrams = DefaultTrigramArray;
 
-    createInvertedIndex(argv[1], &indices);
+    createInvertedIndex(argv[1], 1, &indices);
     createNGrams(argv[1], &indices, &bigrams, &trigrams);
 
     outputInvertedIndex("index.dat", &indices, -1);
@@ -128,14 +128,23 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void createInvertedIndex(const char *fname, IndexArray *indices) {
+/*!
+ * \brief This function creates inverted index from a doc, 
+ *        and put it into index array \p indices.
+ *        
+ * \param fname file name of document to be indexed
+ * \param doc_id the documentation id
+ * \param indices the index array
+ * 
+ * \return void
+ */
+void createInvertedIndex(const char *fname, int doc_id, IndexArray *indices) {
 
     FILE *fp = fopen(fname, "r");
     if (fp == NULL) {
         fprintf(stderr, "%s", "Error: <could not open file>\n");
         exit(EXIT_FAILURE);
     }
-    int doc_id  = 0;
     int line_id = 0;
     char *line  = (char *)malloc(MAX_LINE_LEN * sizeof(char));
 
@@ -163,6 +172,15 @@ void createInvertedIndex(const char *fname, IndexArray *indices) {
     return;
 }
 
+/*!
+ * \brief Creates bigrams and trigrams.
+ * 
+ * \param fname file name of document to be analyzed
+ * \param indices inverted index which gives top 50 words to be skipped.
+ * \param biarr bigram array
+ * \param triarr trigram array
+ * \return void
+ */
 void createNGrams(const char *fname,
                   const IndexArray *indices,
                   BigramArray *biarr,
