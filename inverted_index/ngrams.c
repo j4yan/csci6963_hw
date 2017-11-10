@@ -6,6 +6,7 @@
 #include "comm.h"
 #include "index.h"
 #include "ngrams.h"
+#include "merge_sort.c"
 
 const Bigram DefaultBigram             = {NULL, NULL, 0};
 const BigramArray DefaultBigramArray   = {NULL, 0, 0};
@@ -25,6 +26,7 @@ void createNGrams(const char *fname,
                   BigramArray *biarr,
                   TrigramArray *triarr) {
 
+    int top  = 50; // top words to skip in \v indices
     FILE *fp = fopen(fname, "r");
     if (fp == NULL) {
         fprintf(stderr, "%s", "Error: <could not open file>\n");
@@ -35,31 +37,22 @@ void createNGrams(const char *fname,
     char **words_old = NULL;
     char *line       = (char *)malloc(MAX_LINE_LEN * sizeof(char));
 
-    // initialize
-    while (n_words_old == 0) {
-        if (NULL != fgets(line, MAX_LINE_LEN, fp)) {
-            ++line_id;
-            char **words = NULL;
-            int n_words  = parseLine(line, &words);
-
-            n_words_old = n_words;
-            words_old   = words;
-        }
-    }
     while (NULL != fgets(line, MAX_LINE_LEN, fp)) {
         ++line_id;
         // printf("%i %s", line_id, line);
         char **words = NULL;
         int n_words  = parseLine(line, &words);
 
-        // here we store bigrams and trigrams, that's why we need \p words_old
-        // int n_tot_words = n_words + max(2, n_words_old);
-
-        // count the total number of words we may have in generating
-        // bigrams/trigrams
+        // First count the total number of words we may have in
+        // generating bigrams and trigrams
         int n_tot_words = n_words;
+        // since we may add 2 words into current line from last line,
+        // this variable indicate where in \v tot_words to start
+        // counting bigrams
+        int bigram_start = 0;
         if (n_words_old >= 2) {
             n_tot_words += 2;
+            bigram_start = 1;
         } else if (n_words_old == 1) {
             n_tot_words += 1;
         }
@@ -90,10 +83,8 @@ void createNGrams(const char *fname,
         assert(word_cnt == n_tot_words);
 
         // trigram
-        int top = 50;
-        int i   = 0;
+        int i = 0;
         while (i < n_tot_words - 2) {
-            // for (int i = 0; i < n_tot_words - 2; ++i) {
             if (skipWordInNgram(tot_words[i + 2], indices, top)) {
                 i += 3;
                 continue;
@@ -106,15 +97,21 @@ void createNGrams(const char *fname,
                 i += 1;
                 continue;
             }
+
+            if (strcmp(tot_words[i], "your") == 0 &&
+                strcmp(tot_words[i + 1], "own") == 0 &&
+                strcmp(tot_words[i + 2], "virtues") == 0) {
+                printf("%i\n", line_id);
+            }
+
             addTrigram(
                     tot_words[i], tot_words[i + 1], tot_words[i + 2], triarr);
             ++i;
         }
 
         // bigram
-        i = 0;
+        i = bigram_start;
         while (i < n_tot_words - 1) {
-            // for (int i = 0; i < n_tot_words - 1; ++i) {
             if (skipWordInNgram(tot_words[i + 1], indices, top)) {
                 i += 2;
                 continue;
@@ -123,13 +120,12 @@ void createNGrams(const char *fname,
                 i += 1;
                 continue;
             }
+            // if (!strcmp(tot_words[i], "hallward\'s")) {
+            //     printf("%i\n", line_id);
+            // }
             addBigram(tot_words[i], tot_words[i + 1], biarr);
             ++i;
         }
-
-        // for (int i = 1; i < n_tot_words - 2; ++i) {
-        //     addBigram(tot_words[i], tot_words[i + 1], &bigrams);
-        // }
 
         // update the old words, only when the current line is not empty
         if (n_words > 0) {
@@ -137,28 +133,26 @@ void createNGrams(const char *fname,
                 free(words_old[i]);
             }
             free(words_old);
-            words_old   = words;
-            n_words_old = n_words;
+            words_old   = tot_words;
+            n_words_old = n_tot_words;
         }
     }
+
     // sort bigrams and trigrams
-    {
-        Bigram *bigrams_ptr = biarr->bigrams;
-        qsort(bigrams_ptr,
-              biarr->size,
-              sizeof(*bigrams_ptr),
-              compareBigramsByOccurence);
-    }
-    {
-        Trigram *trigrams = triarr->trigrams;
-        qsort(trigrams,
-              triarr->size,
-              sizeof(*trigrams),
-              compareTrigramsByOccurence);
-    }
+    Bigram *bigrams_ptr = biarr->bigrams;
+    merge_sort(bigrams_ptr,
+               biarr->size,
+               sizeof(*bigrams_ptr),
+               compareBigramsByOccurence);
+    Trigram *trigrams = triarr->trigrams;
+    merge_sort(trigrams,
+               triarr->size,
+               sizeof(*trigrams),
+               compareTrigramsByOccurence);
 
     free(line);
     fclose(fp);
+
     return;
 }
 
@@ -189,21 +183,18 @@ int skipWordInNgram(const char *word, const IndexArray *indices, int top) {
 /*!
  * \brief Compare two trigrams by their occurence.
  *
- * To stabilize, if the occurences are the same, we compare
- * them by their address.
- *
  * \param a 1st trigram
  * \param b 2nd trigram
  *
  * \return a.n_occurs - b.n_occurs
  */
 int compareTrigramsByOccurence(const void *a, const void *b) {
-    const Trigram *w1 = (Trigram *)a;
-    const Trigram *w2 = (Trigram *)b;
+    const Trigram *g1 = (Trigram *)a;
+    const Trigram *g2 = (Trigram *)b;
 
-    int diff = w2->n_occurs - w1->n_occurs;
-    // return w2->n_occurs - w1->n_occurs;
-    return diff == 0 ? (int)(w1 - w2) : diff;
+    return g2->n_occurs - g1->n_occurs;
+    // int diff = g2->n_occurs - g1->n_occurs;
+    // return diff == 0 ? (int)(g1 - g2) : diff;
 }
 
 /*!
@@ -218,7 +209,8 @@ void addBigram(const char *word1, const char *word2, BigramArray *arr) {
     int found = 0;
     for (int i = 0; i < arr->size; ++i) {
         Bigram *bigram = arr->bigrams + i;
-        found          = strcmp(word1, bigram->word1) == 0 &&
+
+        found = strcmp(word1, bigram->word1) == 0 &&
                 strcmp(word2, bigram->word2) == 0;
 
         if (found) {
@@ -275,15 +267,18 @@ void addTrigram(const char *word1,
                 TrigramArray *arr) {
     int found = 0;
     for (int i = 0; i < arr->size; ++i) {
-        Trigram *bigram = arr->trigrams + i;
-        found           = strcmp(word1, bigram->word1) == 0 &&
-                strcmp(word2, bigram->word2) == 0;
+        Trigram *trigram = arr->trigrams + i;
+
+        found = strcmp(word1, trigram->word1) == 0 &&
+                strcmp(word2, trigram->word2) == 0 &&
+                strcmp(word3, trigram->word3) == 0;
 
         if (found) {
-            bigram->n_occurs += 1;
+            trigram->n_occurs += 1;
             return;
         }
     }
+
     if (arr->max_size <= 0) {
         arr->max_size          = 1;
         arr->size              = 0;
@@ -318,7 +313,6 @@ void addTrigram(const char *word1,
     strcpy(arr->trigrams[end].word3, word3);
     arr->trigrams[end].n_occurs += 1;
     ++(arr->size);
-    return;
 
     return;
 }
@@ -335,12 +329,12 @@ void addTrigram(const char *word1,
  * \return a.n_occurs - b.n_occurs
  */
 int compareBigramsByOccurence(const void *a, const void *b) {
-    const Bigram *w1 = (Bigram *)a;
-    const Bigram *w2 = (Bigram *)b;
+    const Bigram *g1 = (Bigram *)a;
+    const Bigram *g2 = (Bigram *)b;
 
-    int diff = w2->n_occurs - w1->n_occurs;
-    // return w2->n_occurs - w1->n_occurs;
-    return diff == 0 ? (int)(w1 - w2) : diff;
+    return g2->n_occurs - g1->n_occurs;
+    // int diff = g2->n_occurs - g1->n_occurs;
+    // return diff == 0 ? (int)(g1 - g2) : diff;
 }
 
 /*!

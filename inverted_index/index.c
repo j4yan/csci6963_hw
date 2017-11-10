@@ -5,6 +5,7 @@
 
 #include "comm.h"
 #include "index.h"
+#include "merge_sort.h"
 
 const IndexedWord DefaultIndexedWord = {NULL, NULL, 0, 0};
 const IndexArray DefaultIndexArray   = {NULL, 0, 0};
@@ -56,13 +57,11 @@ void createInvertedIndex(const char *fname, int doc_id, IndexArray *indices) {
     }
 
     // sort index
-    {
-        IndexedWord *words = indices->words;
-        qsort(words,
-              indices->size,
-              sizeof(*words),
-              compareIndexedWordsByOccurence);
-    }
+    IndexedWord *words = indices->words;
+    merge_sort(words,
+          indices->size,
+          sizeof(*words),
+          compareIndexedWordsByOccurence);
 
     free(line);
     fclose(fp);
@@ -189,9 +188,9 @@ int compareIndexedWordsByOccurence(const void *a, const void *b) {
     const IndexedWord *w1 = (IndexedWord *)a;
     const IndexedWord *w2 = (IndexedWord *)b;
 
-    int diff = w2->n_occurs - w1->n_occurs;
-    // return w2->n_occurs - w1->n_occurs;
-    return diff == 0 ? (int)(w1 - w2) : diff;
+    return w2->n_occurs - w1->n_occurs;
+    // int diff = w2->n_occurs - w1->n_occurs;
+    // return diff == 0 ? (int)(w1 - w2) : diff;
 }
 
 /*!

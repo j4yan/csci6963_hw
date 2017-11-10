@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
     clock_t start = clock();
 
     IndexArray indices = DefaultIndexArray;
-    int doc_id = 1;
+    int doc_id         = 1;
     createInvertedIndex(argv[1], doc_id, &indices);
 
     BigramArray bigrams   = DefaultBigramArray;
@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     destroyIndexArray(&indices);
 
     clock_t diff = clock() - start;
-    int msec = diff * 1000 / CLOCKS_PER_SEC;
-    printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
+    int msec     = diff * 1000 / CLOCKS_PER_SEC;
+    printf("Time taken %d seconds %d milliseconds\n", msec / 1000, msec % 1000);
     return 0;
 }
