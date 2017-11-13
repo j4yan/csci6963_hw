@@ -17,71 +17,42 @@ int regex_match(const char *filename, const char *regex, char ***matches);
 
 int main(int argc, char **argv) {
     // char* text = "<body";
-    // char* regex = "<\\w+";
-    // printf("regex = %s\n", regex);
-    // printf("text = %s\n", text);
-    // int matched = runRegexMatch(regex, text, strlen(text));
-    // printf("%i\n", matched);
+    char* regex = "<\\w+";
+    char* text = "         <!-- <div class=\"nav-column nav-image\">\n";
+    printf("regex = %s\n", regex);
+    printf("text = %s\n", text);
+    int matched = runRegexMatch(regex, text, strlen(text));
+    printf("%i\n", matched);
+
 
     // if (argc != 3) {
     //     fprintf(stderr, "%s", "Error: <Usage: 2 input files>\n");
     //     exit(EXIT_FAILURE);
     // }
-    // char* fname_regex = argv[1];
-    // char* fname_text = argv[2];
-    // FILE* fp_regex = fopen(fname_regex, "r");
-    // FILE* fp_text = fopen(fname_text, "r");
-    // char text[MAX_LINE_LEN] = {'\0'};
-    // char regex[MAX_LINE_LEN] = {'\0'};
-    // int matched;
     //
-    // if (fp_regex == NULL || fp_text == NULL) {
-    //     fprintf(stderr, "%s", "Error: <could not open files>\n");
+    // char *fname_regex        = argv[1];
+    // char *fname_text         = argv[2];
+    // char regex[MAX_LINE_LEN] = {'\0'};
+    // FILE *fp_regex           = fopen(fname_regex, "r");
+    // if (fp_regex == NULL) {
+    //     fprintf(stderr, "%s", "Error: <could not open file>\n");
     //     exit(EXIT_FAILURE);
     // }
     // fgets(regex, MAX_LINE_LEN, fp_regex);
-    // fclose(fp_regex);
-    // // printf("regex = %s\n", regex);
     //
-    // while (fgets(text, MAX_LINE_LEN, fp_text) != NULL) {
-    //     // printf("%s", text);
-    //     matched = runRegexMatch(regex, text, strlen(text));
+    // char ***matched_lines = (char ***)malloc(sizeof(char **));
+    // int n_matched_lines   = regex_match(fname_text, regex, matched_lines);
+    // printf("number of matched liens = %i\n", n_matched_lines);
     //
-    //     if (matched) {
-    //         printf("%s", text);
-    //         fflush(stdout);
-    //     }
+    // for (int i = 0; i < n_matched_lines; ++i) {
+    //     printf("%s", (*matched_lines)[i]);
     // }
-    // fclose(fp_text);
-    //
+    // for (int i = 0; i < n_matched_lines; ++i) {
+    //     free((*matched_lines)[i]);
+    // }
+    // free(*matched_lines);
+    // free(matched_lines);
 
-    if (argc != 3) {
-        fprintf(stderr, "%s", "Error: <Usage: 2 input files>\n");
-        exit(EXIT_FAILURE);
-    }
-
-    char *fname_regex        = argv[1];
-    char *fname_text         = argv[2];
-    char regex[MAX_LINE_LEN] = {'\0'};
-    FILE *fp_regex           = fopen(fname_regex, "r");
-    if (fp_regex == NULL) {
-        fprintf(stderr, "%s", "Error: <could not open file>\n");
-        exit(EXIT_FAILURE);
-    }
-    fgets(regex, MAX_LINE_LEN, fp_regex);
-
-    char ***matched_lines = (char ***)malloc(sizeof(char **));
-    int n_matched_lines   = regex_match(fname_text, regex, matched_lines);
-    printf("number of matched liens = %i\n", n_matched_lines);
-
-    for (int i = 0; i < n_matched_lines; ++i) {
-        printf("%s", (*matched_lines)[i]);
-    }
-    for (int i = 0; i < n_matched_lines; ++i) {
-        free((*matched_lines)[i]);
-    }
-    free(*matched_lines);
-    free(matched_lines);
     return 0;
 }
 /*!
@@ -235,7 +206,7 @@ int runRegexMatch(const char *regex, const char *text, int first_occurence) {
             // is defined by \v first_occurence_repetition.
             first_occurence_repetition = 1;
             ++r_next;
-            if (r_next == regex_len) {
+            if (r_next == regex_len && matched == 1) {
                 return matched;
             }
             if (matched) {

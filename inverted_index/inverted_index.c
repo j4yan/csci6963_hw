@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     TrigramArray trigrams = DefaultTrigramArray;
     createNGrams(argv[1], &indices, &bigrams, &trigrams);
 
-    outputInvertedIndex("index.dat", &indices, -1);
+    outputInvertedIndex("words.dat", &indices, -1);
     outputBigrams("bigrams.dat", &bigrams, -1);
     outputTrigrams("trigrams.dat", &trigrams, -1);
 

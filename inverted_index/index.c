@@ -43,26 +43,55 @@ void createInvertedIndex(const char *fname, int doc_id, IndexArray *indices) {
         fprintf(stderr, "%s", "Error: <could not open file>\n");
         exit(EXIT_FAILURE);
     }
-    int line_id = 0;
-    char *line  = (char *)malloc(MAX_LINE_LEN * sizeof(char));
+    int line_id    = 0;
+    char *line_raw = (char *)malloc(MAX_LINE_LEN * sizeof(char));
+    char *line     = createNewLine();
 
-    while (NULL != fgets(line, MAX_LINE_LEN, fp)) {
+    while (NULL != fgets(line_raw, MAX_LINE_LEN, fp)) {
         ++line_id;
-        // printf("%i %s", line_id, line);
+        for (int i = 0; i < MAX_LINE_LEN; ++i) {
+            line[i] = '\n';
+        }
+        int script_flag = trimLine(line_raw, line);
+        if (script_flag == 1) {
+            while (NULL != fgets(line_raw, MAX_LINE_LEN, fp)) {
+                ++line_id;
+                for (int i = 0; i < MAX_LINE_LEN; ++i) {
+                    line[i] = '\n';
+                }
+                int flag = trimLine(line_raw, line);
+                if (flag == 2) {
+                    break;
+                }
+            }
+            continue;
+        } else if (script_flag == 2) {
+            fprintf(stderr, "%s", "Error: <we should never get here>\n");
+            exit(EXIT_FAILURE);
+        }
+
         char **words = NULL;
         int n_words  = parseLine(line, &words);
         for (int i = 0; i < n_words; ++i) {
             addWordToIndexArray(words[i], doc_id, line_id, i + 1, indices);
+            // if (!strcmp("nav", words[i])) {
+            //     printf("%i %i\n", line_id, n_words);
+            //     printf("%s", line_raw);
+            //     for (int i = 0; i < n_words; ++i) {
+            //         printf("%s\n", words[i]);
+            //     }
+            // }
         }
     }
 
     // sort index
     IndexedWord *words = indices->words;
     merge_sort(words,
-          indices->size,
-          sizeof(*words),
-          compareIndexedWordsByOccurence);
+               indices->size,
+               sizeof(*words),
+               compareIndexedWordsByOccurence);
 
+    free(line_raw);
     free(line);
     fclose(fp);
     return;
@@ -175,9 +204,6 @@ void addOccurToIndexedWord(int doc_id,
 
 /*!
  * \brief Compare two indexed words by their occurence.
- *
- * To stabilize, if the occurences are the same, we compare
- * them by their address.
  *
  * \param a 1st word
  * \param b 2nd word

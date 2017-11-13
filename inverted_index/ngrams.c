@@ -5,8 +5,9 @@
 
 #include "comm.h"
 #include "index.h"
-#include "ngrams.h"
 #include "merge_sort.c"
+#include "ngrams.h"
+#include "regex.h"
 
 const Bigram DefaultBigram             = {NULL, NULL, 0};
 const BigramArray DefaultBigramArray   = {NULL, 0, 0};
@@ -35,11 +36,32 @@ void createNGrams(const char *fname,
     int line_id      = 0;
     int n_words_old  = 0;
     char **words_old = NULL;
-    char *line       = (char *)malloc(MAX_LINE_LEN * sizeof(char));
+    char *line_raw   = (char *)malloc(MAX_LINE_LEN * sizeof(char));
+    char *line       = createNewLine();
 
-    while (NULL != fgets(line, MAX_LINE_LEN, fp)) {
+    while (NULL != fgets(line_raw, MAX_LINE_LEN, fp)) {
         ++line_id;
-        // printf("%i %s", line_id, line);
+        for (int i = 0; i < MAX_LINE_LEN; ++i) {
+            line[i] = '\n';
+        }
+        int script_flag = trimLine(line_raw, line);
+        if (script_flag == 1) {
+            while (NULL != fgets(line_raw, MAX_LINE_LEN, fp)) {
+                ++line_id;
+                for (int i = 0; i < MAX_LINE_LEN; ++i) {
+                    line[i] = '\n';
+                }
+                int flag = trimLine(line_raw, line);
+                if (flag == 2) {
+                    break;
+                }
+            }
+            continue;
+        } else if (script_flag == 2) {
+            fprintf(stderr, "%s", "Error: <we should never get here>\n");
+            exit(EXIT_FAILURE);
+        }
+
         char **words = NULL;
         int n_words  = parseLine(line, &words);
 
@@ -98,12 +120,6 @@ void createNGrams(const char *fname,
                 continue;
             }
 
-            if (strcmp(tot_words[i], "your") == 0 &&
-                strcmp(tot_words[i + 1], "own") == 0 &&
-                strcmp(tot_words[i + 2], "virtues") == 0) {
-                printf("%i\n", line_id);
-            }
-
             addTrigram(
                     tot_words[i], tot_words[i + 1], tot_words[i + 2], triarr);
             ++i;
@@ -150,6 +166,7 @@ void createNGrams(const char *fname,
                sizeof(*trigrams),
                compareTrigramsByOccurence);
 
+    free(line_raw);
     free(line);
     fclose(fp);
 
