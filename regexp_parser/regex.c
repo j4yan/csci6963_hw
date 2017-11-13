@@ -10,16 +10,14 @@
  * forward declaration
  */
 int isRepetitionSymbol(char c);
-int isMetaChar(const char* c);
-int matchChar(const char* regex, const char* str, int* r_next);
-int runRegexMatch(const char* regex, const char* text, int first_occurence);
-int regex_match(const char* filename, const char* regex, char*** matches);
+int isMetaChar(const char *c);
+int matchChar(const char *regex, const char *str, int *r_next);
+int runRegexMatch(const char *regex, const char *text, int first_occurence);
+int regex_match(const char *filename, const char *regex, char ***matches);
 
-int main(int argc, char** argv) {
-    // char text[MAX_LINE_LEN] = {'\0'};
-    // char regex[MAX_LINE_LEN] = {'\0'};
-    // strcpy(regex, argv[1]);
-    // strcpy(text,   argv[2]);
+int main(int argc, char **argv) {
+    // char* text = "<body";
+    // char* regex = "<\\w+";
     // printf("regex = %s\n", regex);
     // printf("text = %s\n", text);
     // int matched = runRegexMatch(regex, text, strlen(text));
@@ -55,24 +53,25 @@ int main(int argc, char** argv) {
     //     }
     // }
     // fclose(fp_text);
+    //
 
     if (argc != 3) {
         fprintf(stderr, "%s", "Error: <Usage: 2 input files>\n");
         exit(EXIT_FAILURE);
     }
 
-    char* fname_regex = argv[1];
-    char* fname_text = argv[2];
+    char *fname_regex        = argv[1];
+    char *fname_text         = argv[2];
     char regex[MAX_LINE_LEN] = {'\0'};
-    FILE* fp_regex = fopen(fname_regex, "r");
+    FILE *fp_regex           = fopen(fname_regex, "r");
     if (fp_regex == NULL) {
         fprintf(stderr, "%s", "Error: <could not open file>\n");
         exit(EXIT_FAILURE);
     }
     fgets(regex, MAX_LINE_LEN, fp_regex);
 
-    char*** matched_lines = (char***) malloc(sizeof(char**));
-    int n_matched_lines = regex_match(fname_text, regex, matched_lines);
+    char ***matched_lines = (char ***)malloc(sizeof(char **));
+    int n_matched_lines   = regex_match(fname_text, regex, matched_lines);
     printf("number of matched liens = %i\n", n_matched_lines);
 
     for (int i = 0; i < n_matched_lines; ++i) {
@@ -88,14 +87,14 @@ int main(int argc, char** argv) {
 /*!
  * \brief  Test if the leading character in \var regex matches
  *         the leading term in \var str.
- *         
+ *
  * \param regex regular expression
  * \param str the string/character to be tested.
  * \param r_next next head in \var regex
- * 
+ *
  * \return 1if the leading characters match; 0 if not match.
  */
-int matchChar(const char* regex, const char* str, int* r_next) {
+int matchChar(const char *regex, const char *str, int *r_next) {
     int i, pos = -1;
     int next_offset, matched;
     const int regex_len = strlen(regex);
@@ -174,10 +173,10 @@ int matchChar(const char* regex, const char* str, int* r_next) {
  * \param text string to be tested
  * \param first_occurence the first match should occur at the first \var
  * first_occurence characters in \var text
- * 
+ *
  * \return 1 if matches; 0 if does not match
  */
-int runRegexMatch(const char* regex, const char* text, int first_occurence) {
+int runRegexMatch(const char *regex, const char *text, int first_occurence) {
     // assert(first_occurence > 0);
     static int n_calls = 0;
     // printf("n_calls = %i\n", n_calls);
@@ -186,13 +185,17 @@ int runRegexMatch(const char* regex, const char* text, int first_occurence) {
     // pointer to the next non-repetition_symbol character in regex
     int r_next;
     int next_offset;
-    const int regex_len = strlen(regex) - 1;
-    // const int text_len = strlen(text) - 1;
-    // const int regex_len = strlen(regex);
+    int regex_len = strlen(regex);
+    if (regex[regex_len-1] == '\0' || regex[regex_len-1] == '\n') {
+        regex_len -= 1;
+    }
+
+    // const int regex_len = strlen(regex) - 1;
     const int text_len = strlen(text);
+    // const int text_len = strlen(text) - 1;
     // the position of leading character in `text`
-    int s_head = 0;
-    int matched = 0;
+    int s_head                     = 0;
+    int matched                    = 0;
     int first_occurence_repetition = 0;
 
     // requirement of first occurence
@@ -238,8 +241,7 @@ int runRegexMatch(const char* regex, const char* text, int first_occurence) {
             if (matched) {
                 first_occurence_repetition = 1;
                 for (j = s_head; j < text_len; ++j) {
-                    matched =
-                        matchChar(regex + r_head, text + j, &next_offset);
+                    matched = matchChar(regex + r_head, text + j, &next_offset);
                     if (matched) {
                         ++first_occurence_repetition;
                     } else {
@@ -247,8 +249,9 @@ int runRegexMatch(const char* regex, const char* text, int first_occurence) {
                     }
                 }
 
-                matched = runRegexMatch(regex + r_next, text + s_head,
-                                          first_occurence_repetition);
+                matched = runRegexMatch(regex + r_next,
+                                        text + s_head,
+                                        first_occurence_repetition);
 
                 if (matched) {
                     return 1;
@@ -265,16 +268,16 @@ int runRegexMatch(const char* regex, const char* text, int first_occurence) {
             } else {
                 first_occurence_repetition = 1;
                 for (j = s_head; j < text_len; ++j) {
-                    matched =
-                        matchChar(regex + r_head, text + j, &next_offset);
+                    matched = matchChar(regex + r_head, text + j, &next_offset);
                     if (matched) {
                         ++first_occurence_repetition;
                     } else {
                         break;
                     }
                 }
-                matched = runRegexMatch(regex + r_next, text + s_head,
-                                          first_occurence_repetition);
+                matched = runRegexMatch(regex + r_next,
+                                        text + s_head,
+                                        first_occurence_repetition);
                 if (matched) {
                     return 1;
                 }
@@ -330,11 +333,15 @@ int runRegexMatch(const char* regex, const char* text, int first_occurence) {
  *
  * \return 1 if yes, 0 if not.
  */
-int isMetaChar(const char* c) {
-    if (c[0] == '.') return 1;
-    if (!strncmp(c, "\\d", 2)) return 1;
-    if (!strncmp(c, "\\w", 2)) return 1;
-    if (!strncmp(c, "\\s", 2)) return 1;
+int isMetaChar(const char *c) {
+    if (c[0] == '.')
+        return 1;
+    if (!strncmp(c, "\\d", 2))
+        return 1;
+    if (!strncmp(c, "\\w", 2))
+        return 1;
+    if (!strncmp(c, "\\s", 2))
+        return 1;
 
     return 0;
 }
@@ -348,14 +355,14 @@ int isMetaChar(const char* c) {
  */
 int isRepetitionSymbol(char c) {
     switch (c) {
-        case '?':
-            return 1;
-        case '+':
-            return 1;
-        case '*':
-            return 1;
-        default:
-            return 0;
+    case '?':
+        return 1;
+    case '+':
+        return 1;
+    case '*':
+        return 1;
+    default:
+        return 0;
     }
 }
 /**
@@ -372,10 +379,10 @@ int isRepetitionSymbol(char c) {
  * \return the number of lines that matched (zero or more) or
  *         -1 if an error occurred
  */
-int regex_match(const char* filename, const char* regex, char*** matches) {
-    char** lines;
-    char** matched_lines;
-    FILE* fp_text = fopen(filename, "r");
+int regex_match(const char *filename, const char *regex, char ***matches) {
+    char **lines;
+    char **matched_lines;
+    FILE *fp_text           = fopen(filename, "r");
     char text[MAX_LINE_LEN] = {'\0'};
 
     if (fp_text == NULL) {
@@ -387,9 +394,9 @@ int regex_match(const char* filename, const char* regex, char*** matches) {
         ++n_lines;
     }
 
-    lines = (char**) malloc(n_lines * sizeof(char*));
+    lines = (char **)malloc(n_lines * sizeof(char *));
     for (int i = 0; i < n_lines; ++i) {
-        lines[i] = (char*) malloc(MAX_LINE_LEN * sizeof(char));
+        lines[i] = (char *)malloc(MAX_LINE_LEN * sizeof(char));
     }
 
     // get back to beginning of text file
@@ -401,29 +408,28 @@ int regex_match(const char* filename, const char* regex, char*** matches) {
         int is_matched = runRegexMatch(regex, text, strlen(text));
 
         if (is_matched) {
-            lines[n_matched_lines] = (char*) malloc(MAX_LINE_LEN * sizeof(char));
+            lines[n_matched_lines] =
+                    (char *)malloc(MAX_LINE_LEN * sizeof(char));
             strcpy(lines[n_matched_lines], text);
             ++n_matched_lines;
         }
     }
 
-    
-    matched_lines = (char**) malloc(n_matched_lines * sizeof(char*));
+    matched_lines = (char **)malloc(n_matched_lines * sizeof(char *));
 
-    for (int i= 0; i < n_matched_lines; ++i) {
-        matched_lines[i] = (char*) malloc(MAX_LINE_LEN * sizeof(char));
+    for (int i = 0; i < n_matched_lines; ++i) {
+        matched_lines[i] = (char *)malloc(MAX_LINE_LEN * sizeof(char));
     }
-
 
     for (int i = 0; i < n_matched_lines; ++i) {
         strcpy(matched_lines[i], lines[i]);
     }
-    
+
     for (int i = 0; i < n_lines; ++i) {
         free(lines[i]);
     }
     free(lines);
-    
+
     *matches = matched_lines;
 
     return n_matched_lines;
