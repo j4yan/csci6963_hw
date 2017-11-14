@@ -2,7 +2,7 @@
 EXEC = index
 all : $(EXEC)
 
-CSRC = regex.c comm.c index.c ngrams.c inverted_index.c
+CSRC = regex.c comm.c index.c ngrams.c inverted_index.c merge_sort.c
 CXXSRC = 
 FSRC = 
 

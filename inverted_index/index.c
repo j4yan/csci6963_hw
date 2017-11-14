@@ -85,11 +85,11 @@ void createInvertedIndex(const char *fname, int doc_id, IndexArray *indices) {
     }
 
     // sort index
-    IndexedWord *words = indices->words;
-    merge_sort(words,
-               indices->size,
-               sizeof(*words),
-               compareIndexedWordsByOccurence);
+    // IndexedWord *words = indices->words;
+    // merge_sort(words,
+    //            indices->size,
+    //            sizeof(*words),
+    //            compareIndexedWordsByOccurence);
 
     free(line_raw);
     free(line);
@@ -116,12 +116,12 @@ void addWordToIndexArray(const char *line,
                          int line_id,
                          int word_id,
                          IndexArray *indices) {
-    int word_found = 0;
+    int found = 0;
     for (int i = 0; i < indices->size; ++i) {
         IndexedWord *word = &indices->words[i];
         // if we already have the word
-        word_found = !strcmp(word->chars, line);
-        if (word_found) {
+        found = !strcmp(word->chars, line);
+        if (found) {
             addOccurToIndexedWord(doc_id, line_id, word_id, word);
             return;
         }

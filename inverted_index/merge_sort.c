@@ -1,4 +1,7 @@
 #include "merge_sort.h"
+#include "stdlib.h"
+#include "string.h"
+
 void merge(void *base,
            size_t num,
            size_t el_size,

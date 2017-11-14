@@ -5,7 +5,7 @@
 
 #include "comm.h"
 #include "index.h"
-#include "merge_sort.c"
+#include "merge_sort.h"
 #include "ngrams.h"
 #include "regex.h"
 
@@ -23,6 +23,7 @@ const TrigramArray DefaultTrigramArray = {NULL, 0, 0};
  * \return void
  */
 void createNGrams(const char *fname,
+                  int doc_id,
                   const IndexArray *indices,
                   BigramArray *biarr,
                   TrigramArray *triarr) {
@@ -120,8 +121,11 @@ void createNGrams(const char *fname,
                 continue;
             }
 
-            addTrigram(
-                    tot_words[i], tot_words[i + 1], tot_words[i + 2], triarr);
+            addTrigram(tot_words[i],
+                       tot_words[i + 1],
+                       tot_words[i + 2],
+                       doc_id,
+                       triarr);
             ++i;
         }
 
@@ -139,7 +143,7 @@ void createNGrams(const char *fname,
             // if (!strcmp(tot_words[i], "hallward\'s")) {
             //     printf("%i\n", line_id);
             // }
-            addBigram(tot_words[i], tot_words[i + 1], biarr);
+            addBigram(tot_words[i], tot_words[i + 1], doc_id, biarr);
             ++i;
         }
 
@@ -155,21 +159,39 @@ void createNGrams(const char *fname,
     }
 
     // sort bigrams and trigrams
-    Bigram *bigrams_ptr = biarr->bigrams;
-    merge_sort(bigrams_ptr,
-               biarr->size,
-               sizeof(*bigrams_ptr),
-               compareBigramsByOccurence);
-    Trigram *trigrams = triarr->trigrams;
-    merge_sort(trigrams,
-               triarr->size,
-               sizeof(*trigrams),
-               compareTrigramsByOccurence);
+    // Bigram *bigrams_ptr = biarr->grams;
+    // merge_sort(bigrams_ptr,
+    //            biarr->size,
+    //            sizeof(*bigrams_ptr),
+    //            compareBigramsByOccurence);
+    // Trigram *trigrams = triarr->grams;
+    // merge_sort(trigrams,
+    //            triarr->size,
+    //            sizeof(*trigrams),
+    //            compareTrigramsByOccurence);
 
     free(line_raw);
     free(line);
     fclose(fp);
 
+    return;
+}
+
+void destroyBigramArray(BigramArray *arr) {
+    for (int i = 0; i < arr->size; ++i) {
+        free(arr->grams[i].occurs);
+    }
+
+    free(arr->grams);
+    return;
+}
+
+void destroyTrigramArray(TrigramArray *arr) {
+    for (int i = 0; i < arr->size; ++i) {
+        free(arr->grams[i].occurs);
+    }
+
+    free(arr->grams);
     return;
 }
 
@@ -222,16 +244,20 @@ int compareTrigramsByOccurence(const void *a, const void *b) {
  * \param arr bigram array
  * \return nothing
  */
-void addBigram(const char *word1, const char *word2, BigramArray *arr) {
+void addBigram(const char *word1,
+               const char *word2,
+               int doc_id,
+               BigramArray *arr) {
     int found = 0;
     for (int i = 0; i < arr->size; ++i) {
-        Bigram *bigram = arr->bigrams + i;
+        Bigram *bigram = arr->grams + i;
 
         found = strcmp(word1, bigram->word1) == 0 &&
                 strcmp(word2, bigram->word2) == 0;
 
         if (found) {
-            bigram->n_occurs += 1;
+            // bigram->n_occurs += 1;
+            addOccurToBigram(doc_id, bigram);
             return;
         }
     }
@@ -239,32 +265,35 @@ void addBigram(const char *word1, const char *word2, BigramArray *arr) {
         arr->max_size            = 1;
         arr->size                = 0;
         int max_size             = arr->max_size;
-        arr->bigrams             = (Bigram *)malloc(max_size * sizeof(Bigram));
-        arr->bigrams[0].word1    = createNewWord();
-        arr->bigrams[0].word2    = createNewWord();
-        arr->bigrams[0].n_occurs = 0;
+        arr->grams             = (Bigram *)malloc(max_size * sizeof(Bigram));
+        arr->grams[0].word1    = createNewWord();
+        arr->grams[0].word2    = createNewWord();
+        arr->grams[0].n_occurs = 0;
+        arr->grams[0].max_occurs = 0;
     } else if (arr->size >= arr->max_size - 1) {
         arr->max_size *= 2;
-        Bigram *ptr = realloc(arr->bigrams, arr->max_size * sizeof(Bigram));
+        Bigram *ptr = realloc(arr->grams, arr->max_size * sizeof(Bigram));
 
         if (ptr == NULL) {
             fprintf(stderr, "%s", "Error: <unable to reallocate memory>\n");
             exit(EXIT_FAILURE);
         } else {
-            arr->bigrams = ptr;
+            arr->grams = ptr;
 
             for (int i = arr->size; i < arr->max_size; ++i) {
-                arr->bigrams[i].word1    = createNewWord();
-                arr->bigrams[i].word2    = createNewWord();
-                arr->bigrams[i].n_occurs = 0;
+                arr->grams[i].word1    = createNewWord();
+                arr->grams[i].word2    = createNewWord();
+                arr->grams[i].n_occurs = 0;
+                arr->grams[i].max_occurs = 0;
             }
         }
     }
 
     int end = arr->size;
-    strcpy(arr->bigrams[end].word1, word1);
-    strcpy(arr->bigrams[end].word2, word2);
-    arr->bigrams[end].n_occurs += 1;
+    strcpy(arr->grams[end].word1, word1);
+    strcpy(arr->grams[end].word2, word2);
+    // arr->grams[end].n_occurs += 1;
+    addOccurToBigram(doc_id, arr->grams + end);
     ++(arr->size);
     return;
 }
@@ -281,17 +310,19 @@ void addBigram(const char *word1, const char *word2, BigramArray *arr) {
 void addTrigram(const char *word1,
                 const char *word2,
                 const char *word3,
+                int doc_id,
                 TrigramArray *arr) {
     int found = 0;
     for (int i = 0; i < arr->size; ++i) {
-        Trigram *trigram = arr->trigrams + i;
+        Trigram *trigram = arr->grams + i;
 
         found = strcmp(word1, trigram->word1) == 0 &&
                 strcmp(word2, trigram->word2) == 0 &&
                 strcmp(word3, trigram->word3) == 0;
 
         if (found) {
-            trigram->n_occurs += 1;
+            // trigram->n_occurs += 1;
+            addOccurToTrigram(doc_id, trigram);
             return;
         }
     }
@@ -300,35 +331,38 @@ void addTrigram(const char *word1,
         arr->max_size          = 1;
         arr->size              = 0;
         int max_size           = arr->max_size;
-        arr->trigrams          = (Trigram *)malloc(max_size * sizeof(Trigram));
-        arr->trigrams[0].word1 = createNewWord();
-        arr->trigrams[0].word2 = createNewWord();
-        arr->trigrams[0].word3 = createNewWord();
-        arr->trigrams[0].n_occurs = 0;
+        arr->grams          = (Trigram *)malloc(max_size * sizeof(Trigram));
+        arr->grams[0].word1 = createNewWord();
+        arr->grams[0].word2 = createNewWord();
+        arr->grams[0].word3 = createNewWord();
+        arr->grams[0].n_occurs = 0;
+        arr->grams[0].max_occurs = 0;
     } else if (arr->size >= arr->max_size - 1) {
         arr->max_size *= 2;
-        Trigram *ptr = realloc(arr->trigrams, arr->max_size * sizeof(Trigram));
+        Trigram *ptr = realloc(arr->grams, arr->max_size * sizeof(Trigram));
 
         if (ptr == NULL) {
             fprintf(stderr, "%s", "Error: <unable to reallocate memory>\n");
             exit(EXIT_FAILURE);
         } else {
-            arr->trigrams = ptr;
+            arr->grams = ptr;
 
             for (int i = arr->size; i < arr->max_size; ++i) {
-                arr->trigrams[i].word1    = createNewWord();
-                arr->trigrams[i].word2    = createNewWord();
-                arr->trigrams[i].word3    = createNewWord();
-                arr->trigrams[i].n_occurs = 0;
+                arr->grams[i].word1    = createNewWord();
+                arr->grams[i].word2    = createNewWord();
+                arr->grams[i].word3    = createNewWord();
+                arr->grams[i].n_occurs = 0;
+                arr->grams[i].max_occurs = 0;
             }
         }
     }
 
     int end = arr->size;
-    strcpy(arr->trigrams[end].word1, word1);
-    strcpy(arr->trigrams[end].word2, word2);
-    strcpy(arr->trigrams[end].word3, word3);
-    arr->trigrams[end].n_occurs += 1;
+    strcpy(arr->grams[end].word1, word1);
+    strcpy(arr->grams[end].word2, word2);
+    strcpy(arr->grams[end].word3, word3);
+    // arr->grams[end].n_occurs += 1;
+    addOccurToTrigram(doc_id, arr->grams + end);
     ++(arr->size);
 
     return;
@@ -375,13 +409,13 @@ void outputBigrams(const char *fname, const BigramArray *arr, int top_n) {
     int n_total_grams = 0;
 
     for (int i = 0; i < arr->size; ++i) {
-        Bigram *gram = arr->bigrams + i;
+        Bigram *gram = arr->grams + i;
         n_total_grams += gram->n_occurs;
     }
     fprintf(fp, "TOTAL BIGRAMS: %i\n", n_total_grams);
     fprintf(fp, "UNIQUE BIGRAMS: %i\n", arr->size);
     for (int i = 0; i < n_output; ++i) {
-        Bigram *gram = arr->bigrams + i;
+        Bigram *gram = arr->grams + i;
         n_total_grams += gram->n_occurs;
         fprintf(fp, "%i %s %s\n", gram->n_occurs, gram->word1, gram->word2);
     }
@@ -412,13 +446,13 @@ void outputTrigrams(const char *fname, const TrigramArray *arr, int top_n) {
     int n_total_grams = 0;
 
     for (int i = 0; i < arr->size; ++i) {
-        Trigram *gram = arr->trigrams + i;
+        Trigram *gram = arr->grams + i;
         n_total_grams += gram->n_occurs;
     }
     fprintf(fp, "TOTAL TRIGRAMS: %i\n", n_total_grams);
     fprintf(fp, "UNIQUE TRIGRAMS: %i\n", arr->size);
     for (int i = 0; i < n_output; ++i) {
-        Trigram *gram = arr->trigrams + i;
+        Trigram *gram = arr->grams + i;
         n_total_grams += gram->n_occurs;
         fprintf(fp,
                 "%i %s %s %s\n",
@@ -429,5 +463,69 @@ void outputTrigrams(const char *fname, const TrigramArray *arr, int top_n) {
     }
 
     fclose(fp);
+    return;
+}
+
+void addOccurToBigram(int doc_id, Bigram *gram) {
+
+    if (gram->max_occurs <= 0) {
+        gram->max_occurs = 1;
+        gram->n_occurs   = 0;
+        gram->occurs =
+                (Occurence *)malloc(gram->max_occurs * sizeof(Occurence));
+    } else if (gram->n_occurs >= gram->max_occurs - 1) {
+        // this deal with the initial case where max_docs = 0
+        gram->max_occurs *= 2;
+
+        Occurence *ptr =
+                realloc(gram->occurs, gram->max_occurs * sizeof(Occurence));
+
+        if (ptr == NULL) {
+            fprintf(stderr, "%s", "Error: <unable to reallocate memory>\n");
+            exit(EXIT_FAILURE);
+        } else {
+            gram->occurs = ptr;
+            // printf("WordOccurence: memory reallocated\n");
+        }
+    }
+
+    Occurence *end = gram->occurs + gram->n_occurs;
+    end->doc_id    = doc_id;
+    end->line_id   = -1;
+    end->word_id   = -1;
+
+    ++(gram->n_occurs);
+    return;
+}
+
+void addOccurToTrigram(int doc_id, Trigram *gram) {
+
+    if (gram->max_occurs <= 0) {
+        gram->max_occurs = 1;
+        gram->n_occurs   = 0;
+        gram->occurs =
+                (Occurence *)malloc(gram->max_occurs * sizeof(Occurence));
+    } else if (gram->n_occurs >= gram->max_occurs - 1) {
+        // this deal with the initial case where max_docs = 0
+        gram->max_occurs *= 2;
+
+        Occurence *ptr =
+                realloc(gram->occurs, gram->max_occurs * sizeof(Occurence));
+
+        if (ptr == NULL) {
+            fprintf(stderr, "%s", "Error: <unable to reallocate memory>\n");
+            exit(EXIT_FAILURE);
+        } else {
+            gram->occurs = ptr;
+            // printf("WordOccurence: memory reallocated\n");
+        }
+    }
+
+    Occurence *end = gram->occurs + gram->n_occurs;
+    end->doc_id    = doc_id;
+    end->line_id   = -1;
+    end->word_id   = -1;
+
+    ++(gram->n_occurs);
     return;
 }
