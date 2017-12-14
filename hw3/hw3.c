@@ -84,7 +84,7 @@ int main(int argc, char **argv)
 
     IndexArray indices = DefaultIndexArray;
     for (int i = 0; i < n_files; ++i) {
-        createInvertedIndex(fnames[i], i + 1, &indices);
+        createInvertedIndex(fnames[i], doc_id[i], &indices);
     }
 
     // IndexedWord *words = indices.words;
@@ -112,8 +112,6 @@ int main(int argc, char **argv)
                sizeof(*(trigrams.grams)),
                compareTrigramsByOccurence);
 
-    int *occuring_doc_id         = (int *)malloc(n_files * sizeof(int));
-    int *occuring_line_id        = (int *)malloc(n_files * sizeof(int));
     const int NPRE               = 10;
     const int NPOST              = 10;
     const int STENCIL_LINES      = NPRE + NPOST + 1;
@@ -123,6 +121,11 @@ int main(int argc, char **argv)
     for (int i = 0; i < STENCIL_WORDS; ++i) {
         sur_words[i] = createNewWord();
     }
+    // for (int i=0; i<indices.size; ++i) {
+    //     if (!strcmp(indices.words[i].chars, "abc")) {
+    //         printf("doc_id(acc) = %i\n", indices.words[i].occurs[0].doc_id);
+    //     }
+    // }
 
     // start searching words
     for (;;) {
@@ -141,39 +144,53 @@ int main(int argc, char **argv)
         if (n_query_words > max_words) {
             n_query_words = max_words;
         }
-        int *n_occurs = (int *)malloc(n_query_words * sizeof(int));
+
+        int *n_occurs          = (int *)malloc(n_query_words * sizeof(int));
+        int *n_docs            = (int *)malloc(n_query_words * sizeof(int));
+        int **occuring_doc_id  = (int **)malloc(n_query_words * sizeof(int *));
+        int **occuring_line_id = (int **)malloc(n_query_words * sizeof(int *));
         // words occurence
         for (int i = 0; i < n_query_words; ++i) {
+            occuring_doc_id[i] = (int*)malloc(n_files * sizeof(int));
+            occuring_line_id[i] = (int*)malloc(n_files * sizeof(int));
             n_occurs[i] = 0;
-            int n_doc   = 0;
+            n_docs[i]   = 0;
+            int found_query_word = 0;
             for (int j = 0; j < indices.size; ++j) {
                 if (strcmp(indices.words[j].chars, query_words[i])) {
                     continue;
                 }
+                found_query_word = 1;
                 int n_cur_occurs = indices.words[j].n_occurs;
                 n_occurs[i] += n_cur_occurs;
 
-                for (int l = 0; l < n_cur_occurs; ++l) {
+                for (int occ_i = 0; occ_i < n_cur_occurs; ++occ_i) {
+                    Occurence* occ = &(indices.words[j].occurs[occ_i]);
+                    // check if we already have the docID
                     int found = 0;
-                    for (int k = 0; k < n_doc; ++k) {
-                        if (occuring_doc_id[k] ==
-                            indices.words[j].occurs[l].doc_id) {
+                    for (int k = 0; k < n_docs[i]; ++k) {
+                        if (occuring_doc_id[i][k] == occ->doc_id) {
                             found = 1;
                             break;
                         }
                     }
-                    if (n_doc == n_files) {
+                    // check if we already have all the docs, break
+                    if (!found) {
+                        occuring_doc_id[i][n_docs[i]] = occ->doc_id;
+                        occuring_line_id[i][n_docs[i]] = occ->line_id;
+                        ++n_docs[i];
+                    }
+                    if (n_docs[i] == n_files) {
                         break;
                     }
-                    if (!found) {
-                        occuring_doc_id[n_doc] =
-                                indices.words[i].occurs[l].doc_id;
-                        occuring_line_id[n_doc] =
-                                indices.words[i].occurs[l].line_id;
-                        ++n_doc;
-                    }
                 }
+                // arriving here indicates that we already have found the query words
                 break;
+            }
+
+            if (!found_query_word) {
+                printf("there is something wrong!!!\n");
+                return EXIT_FAILURE;
             }
 
             printf("Number of \"%s\" occurences is %i",
@@ -181,8 +198,8 @@ int main(int argc, char **argv)
                    n_occurs[i]);
             if (n_occurs[i] > 0) {
                 printf(" [docID");
-                for (int j = 0; j < n_doc; ++j) {
-                    printf(" %i", occuring_doc_id[j]);
+                for (int j = 0; j < n_docs[i]; ++j) {
+                    printf(" %i", occuring_doc_id[i][j]);
                 }
                 printf("]");
             }
@@ -190,128 +207,106 @@ int main(int argc, char **argv)
             printf("\n");
         }
         for (int i = 0; i < n_query_words; ++i) {
-            // int n_occurs       = 0;
-            // int n_doc          = 0;
-            // for (int i = 0; i < n_files; ++i) {
-            //     occuring_doc_id[i] = -1;
-            // }
-            // for (int j = 0; j < indices.size; ++j) {
-            //     if (strcmp(indices.words[j].chars, query_words[i])) {
-            //         continue;
-            //     }
-            //     int n_cur_occurs = indices.words[j].n_occurs;
-            //     n_occurs += n_cur_occurs;
-            //     target_doc_id  = indices.words[j].occurs[0].doc_id;
-            //     target_line_id = indices.words[j].occurs[0].line_id;
-            //
-            //     for (int l = 0; l < n_cur_occurs; ++l) {
-            //         int found = 0;
-            //         for (int k = 0; k < n_doc; ++k) {
-            //             if (occuring_doc_id[k] ==
-            //                 indices.words[j].occurs[l].doc_id) {
-            //                 found = 1;
-            //                 break;
-            //             }
-            //         }
-            //         if (n_doc == n_files) {
-            //             break;
-            //         }
-            //         if (!found) {
-            //             occuring_doc_id[n_doc] =
-            //                     indices.words[i].occurs[l].doc_id;
-            //             ++n_doc;
-            //         }
-            //     }
-            //     break;
-            // }
-
             if (n_occurs[i] == 0) {
                 continue;
             }
 
-            int n_stencil_words = readSurroundingLinesIntoWords(
-                    fnames[occuring_doc_id[0] - 1],
-                    occuring_line_id[0],
-                    NPRE,
-                    NPOST,
-                    &sur_words);
-            // for (int i=0; i<n_stencil_words; ++i) {
-            //     printf("%s ", sur_words[i]);
-            // }
-            // printf("\n");
-            // loop over stencil words, find out the index of query word.
-            int query_word_id    = -1;  // index of pass-the-end word in snippet
-            int word_id0         = -1;  // index of first word in snippet
-            int word_id1         = -1;  // index of last word in snippet
-            int found_query_word = 0;
-            char *tmp_word       = createNewWord();
-            for (int j = 0; j < n_stencil_words; ++j) {
-                char **sub_words = NULL;
-                strcpy(tmp_word, sur_words[j]);
-                // int n_sub_words  = parseLine(sur_words[j], &sub_words);
-                int n_sub_words = parseLine(tmp_word, &sub_words);
-                for (int k = 0; k < n_sub_words; ++k) {
-                    if (!strcmp(sub_words[k], query_words[i])) {
-                        // since we added into sur_words NPRE lines before and
-                        // NPOST lines after the occuring line, these 2 indices
-                        // propably are not negative.
-                        query_word_id    = j;
-                        found_query_word = 1;
+            for (int doc_j = 0; doc_j < n_docs[i]; ++doc_j) {
+                int n_stencil_words = readSurroundingLinesIntoWords(
+                        fnames[occuring_doc_id[i][doc_j] - 1],
+                        occuring_line_id[i][doc_j],
+                        NPRE,
+                        NPOST,
+                        &sur_words);
+                // for (int i=0; i<n_stencil_words; ++i) {
+                //     printf("%s ", sur_words[i]);
+                // }
+                // printf("\n");
+                // loop over stencil words, find out the index of query word.
+                int query_word_id =
+                        -1;  // index of pass-the-end word in snippet
+                int word_id0         = -1;  // index of first word in snippet
+                int word_id1         = -1;  // index of last word in snippet
+                int found_query_word = 0;
+                char *tmp_word       = createNewWord();
+                for (int j = 0; j < n_stencil_words; ++j) {
+                    char **sub_words = NULL;
+                    strcpy(tmp_word, sur_words[j]);
+                    // int n_sub_words  = parseLine(sur_words[j], &sub_words);
+                    int n_sub_words = parseLine(tmp_word, &sub_words);
+                    for (int k = 0; k < n_sub_words; ++k) {
+                        if (!strcmp(sub_words[k], query_words[i])) {
+                            // since we added into sur_words NPRE lines before
+                            // and NPOST lines after the occuring line, these 2
+                            // indices propably are not negative.
+                            query_word_id    = j;
+                            found_query_word = 1;
+                            break;
+                        }
+                    }
+                    if (found_query_word) {
                         break;
                     }
                 }
-                if (found_query_word) {
-                    break;
+                if (found_query_word == 0) {
+                    fprintf(stderr, "%s", "Error: <could not find word>\n");
+                    printf("%s", fnames[occuring_doc_id[i][doc_j] - 1]);
+                    exit(EXIT_FAILURE);
                 }
-            }
-            word_id0 = query_word_id;
-            word_id1 = query_word_id;
-            // find word_id0 and word_id1
-            int n_tot_sub_words = 0;
-            for (int j = 0; j < 100; j++) {
-                char **sub_words = NULL;
-                int id           = query_word_id - 1 - j;
-                if (id < 0) {
-                    break;
+                word_id0 = query_word_id;
+                word_id1 = query_word_id;
+                // find word_id0 and word_id1
+                int n_tot_sub_words = 0;
+                for (int j = 0; j < 100; j++) {
+                    char **sub_words = NULL;
+                    int id           = query_word_id - 1 - j;
+                    if (id < 0) {
+                        break;
+                    }
+                    strcpy(tmp_word, sur_words[id]);
+                    int n_sub_words = parseLine(tmp_word, &sub_words);
+                    n_tot_sub_words += n_sub_words;
+                    word_id0 = id;
+                    if (n_tot_sub_words >= 5) {
+                        break;
+                    }
                 }
-                strcpy(tmp_word, sur_words[id]);
-                int n_sub_words = parseLine(tmp_word, &sub_words);
-                n_tot_sub_words += n_sub_words;
-                word_id0 = id;
-                if (n_tot_sub_words >= 5) {
-                    break;
+                n_tot_sub_words = 0;
+                for (int j = 0; j < 100; j++) {
+                    char **sub_words = NULL;
+                    int id           = query_word_id + j + 1;
+                    if (id > n_stencil_words - 1) {
+                        break;
+                    }
+                    strcpy(tmp_word, sur_words[id]);
+                    int n_sub_words = parseLine(tmp_word, &sub_words);
+                    n_tot_sub_words += n_sub_words;
+                    word_id1 += n_sub_words;
+                    word_id1 = id;
+                    if (n_tot_sub_words >= 5) {
+                        break;
+                    }
                 }
-            }
-            n_tot_sub_words = 0;
-            for (int j = 0; j < 100; j++) {
-                char **sub_words = NULL;
-                int id           = query_word_id + j + 1;
-                if (id > n_stencil_words - 1) {
-                    break;
+                if (word_id0 < 0) {
+                    word_id0 = 0;
                 }
-                strcpy(tmp_word, sur_words[id]);
-                int n_sub_words = parseLine(tmp_word, &sub_words);
-                n_tot_sub_words += n_sub_words;
-                word_id1 += n_sub_words;
-                word_id1 = id;
-                if (n_tot_sub_words >= 5) {
-                    break;
+                if (word_id1 > n_stencil_words) {
+                    word_id1 = n_stencil_words;
                 }
+                printf("...");
+                for (int j = word_id0; j < word_id1; ++j) {
+                    printf("%s ", sur_words[j]);
+                }
+                printf("%s...\n", sur_words[word_id1]);
             }
-            if (word_id0 < 0) {
-                word_id0 = 0;
-            }
-            if (word_id1 > n_stencil_words) {
-                word_id1 = n_stencil_words;
-            }
-            printf("...");
-            for (int j = word_id0; j < word_id1; ++j) {
-                printf("%s ", sur_words[j]);
-            }
-            printf("%s...\n", sur_words[word_id1]);
         }
+        for ( int i=0; i<n_query_words; ++i ) {
+            free(occuring_doc_id[i]);
+            free(occuring_line_id[i]);
+        }
+        free(occuring_doc_id);
+        free(occuring_line_id);
     }
-    free(occuring_doc_id);
     free(line);
 
     destroyIndexArray(&indices);
