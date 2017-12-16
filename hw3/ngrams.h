@@ -62,16 +62,18 @@ extern const Trigram DefaultTrigram;
 extern const BigramArray DefaultBigramArray;
 extern const TrigramArray DefaultTrigramArray;
 
-void addOccurToBigram(int doc_id, Bigram *gram);
-void addOccurToTrigram(int doc_id, Trigram *gram);
+void addOccurToBigram(int doc_id, int line_id, Bigram *gram);
+void addOccurToTrigram(int doc_id, int line_id, Trigram *gram);
 void addBigram(const char *word1,
                const char *word2,
                int doc_id,
+               int line_id,
                BigramArray *bigrams);
 void addTrigram(const char *word1,
                 const char *word2,
                 const char *word3,
                 int doc_id,
+                int line_id,
                 TrigramArray *trigrams);
 void createNGrams(const char *fname,
                   int doc_id,

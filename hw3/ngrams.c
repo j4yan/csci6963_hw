@@ -125,6 +125,7 @@ void createNGrams(const char *fname,
                        tot_words[i + 1],
                        tot_words[i + 2],
                        doc_id,
+                       line_id,
                        triarr);
             ++i;
         }
@@ -143,7 +144,7 @@ void createNGrams(const char *fname,
             // if (!strcmp(tot_words[i], "hallward\'s")) {
             //     printf("%i\n", line_id);
             // }
-            addBigram(tot_words[i], tot_words[i + 1], doc_id, biarr);
+            addBigram(tot_words[i], tot_words[i + 1], doc_id, line_id, biarr);
             ++i;
         }
 
@@ -207,6 +208,7 @@ void destroyTrigramArray(TrigramArray *arr) {
  * \return 1 if skipping this word, 0 if not.
  */
 int skipWordInNgram(const char *word, const IndexArray *indices, int top) {
+    if (indices->size < 100) return 0;
     int n_top = top < indices->size ? top : indices->size;
 
     for (int i = 0; i < n_top; ++i) {
@@ -247,6 +249,7 @@ int compareTrigramsByOccurence(const void *a, const void *b) {
 void addBigram(const char *word1,
                const char *word2,
                int doc_id,
+               int line_id,
                BigramArray *arr) {
     int found = 0;
     for (int i = 0; i < arr->size; ++i) {
@@ -257,7 +260,7 @@ void addBigram(const char *word1,
 
         if (found) {
             // bigram->n_occurs += 1;
-            addOccurToBigram(doc_id, bigram);
+            addOccurToBigram(doc_id, line_id, bigram);
             return;
         }
     }
@@ -293,7 +296,7 @@ void addBigram(const char *word1,
     strcpy(arr->grams[end].word1, word1);
     strcpy(arr->grams[end].word2, word2);
     // arr->grams[end].n_occurs += 1;
-    addOccurToBigram(doc_id, arr->grams + end);
+    addOccurToBigram(doc_id, line_id, arr->grams + end);
     ++(arr->size);
     return;
 }
@@ -311,6 +314,7 @@ void addTrigram(const char *word1,
                 const char *word2,
                 const char *word3,
                 int doc_id,
+                int line_id,
                 TrigramArray *arr) {
     int found = 0;
     for (int i = 0; i < arr->size; ++i) {
@@ -322,7 +326,7 @@ void addTrigram(const char *word1,
 
         if (found) {
             // trigram->n_occurs += 1;
-            addOccurToTrigram(doc_id, trigram);
+            addOccurToTrigram(doc_id, line_id, trigram);
             return;
         }
     }
@@ -362,7 +366,7 @@ void addTrigram(const char *word1,
     strcpy(arr->grams[end].word2, word2);
     strcpy(arr->grams[end].word3, word3);
     // arr->grams[end].n_occurs += 1;
-    addOccurToTrigram(doc_id, arr->grams + end);
+    addOccurToTrigram(doc_id, line_id, arr->grams + end);
     ++(arr->size);
 
     return;
@@ -466,7 +470,7 @@ void outputTrigrams(const char *fname, const TrigramArray *arr, int top_n) {
     return;
 }
 
-void addOccurToBigram(int doc_id, Bigram *gram) {
+void addOccurToBigram(int doc_id, int line_id, Bigram *gram) {
 
     if (gram->max_occurs <= 0) {
         gram->max_occurs = 1;
@@ -491,14 +495,14 @@ void addOccurToBigram(int doc_id, Bigram *gram) {
 
     Occurence *end = gram->occurs + gram->n_occurs;
     end->doc_id    = doc_id;
-    end->line_id   = -1;
+    end->line_id   = line_id;
     end->word_id   = -1;
 
     ++(gram->n_occurs);
     return;
 }
 
-void addOccurToTrigram(int doc_id, Trigram *gram) {
+void addOccurToTrigram(int doc_id, int line_id, Trigram *gram) {
 
     if (gram->max_occurs <= 0) {
         gram->max_occurs = 1;
@@ -523,7 +527,7 @@ void addOccurToTrigram(int doc_id, Trigram *gram) {
 
     Occurence *end = gram->occurs + gram->n_occurs;
     end->doc_id    = doc_id;
-    end->line_id   = -1;
+    end->line_id   = line_id;
     end->word_id   = -1;
 
     ++(gram->n_occurs);
