@@ -1,0 +1,24 @@
+th
+the
+quick
+brown
+chicken
+jumps
+over
+lazy
+mouse
+cat
+mouse cat
+abc
+def
+ghi
+abc def
+abc def ghi
+abc ghi def
+jkl
+mno
+prq
+stu
+vwx
+yz
+QUIT

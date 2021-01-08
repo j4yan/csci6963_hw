@@ -1,0 +1,75 @@
+[08/31/2017]
+
+CSCI 4963/6963 - Large-Scale Programming and Testing
+
+
+Why do we love to program?
+
+-- interdisciplinary -- CS underlies/intersects many fields
+
+-- Helping to solve societal/community problems
+
+-- The process is not iterative/repetitive; more of a creative process
+
+-- Rewarding to finish something, i.e., solve a puzzle
+
+-- Feels good when things work (as they should)
+
+-- It is fun
+
+-- Always learning something new
+
+-- Make life easier by automating something; efficiency
+
+-- $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+
+
+
+
+What does it mean to scale up?
+-- increasing in size to the point that something needs to change
+   -- how do we accommodate this in the given system?
+
+What are some examples of scaling up?
+
+What are examples of failures to scale up?
+
+Any patterns that are evident in scaling up?
+
+-- automating and setting up your infrastructure -- auto-config/deployment
+   -- incremental deployment
+
+-- formally standardizing documentation, coding standards, team processes, etc.
+
+-- eliminating bottlenecks
+
+
+Why is scaling up so difficult?
+
+
+What are best language-independent practices for writing "good" code?
+-- Clearly establish coding standards
+-- Meaningful and consistent variable names
+-- AntiPattern: copy-and-paste coding ----> create a function / abstraction
+-- Document each function, module, class, etc.
+-- Organize your code into smaller modules -- clearly defined interfaces
+    between these modules
+-- Write for extensibility to the extent possible
+-- Look for language-specific "rules" and guidelines
+-- Omit unnecessary coupling and code for modularity
+-- Look for and use external libraries to solve common problems
+    -- don't reinvent the wheel
+
+
+
+
+
+
+
+
+
+
+
+
+
